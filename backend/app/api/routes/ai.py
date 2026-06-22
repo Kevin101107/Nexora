@@ -1,4 +1,5 @@
 import asyncio
+import json
 from fastapi import APIRouter, HTTPException, Header
 from fastapi.responses import StreamingResponse
 from app.models.ai import ChatRequest, ExplainRequest, QuizRequest, SummarizeRequest
@@ -34,6 +35,52 @@ PROMPTS = {
         "Be concise but comprehensive."
     ),
 }
+
+
+def _parse_json_payload(text: str):
+    payload = text.strip()
+    if payload.startswith("```"):
+        parts = payload.split("```")
+        if len(parts) >= 3:
+            payload = parts[1]
+            if payload.startswith("json"):
+                payload = payload[4:].strip()
+    return json.loads(payload)
+
+
+def _normalize_quiz_questions(raw) -> list[dict]:
+    if not isinstance(raw, list):
+        raise ValueError("Quiz payload is not an array")
+    normalized = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        question = str(item.get("question", "")).strip()
+        options = item.get("options", [])
+        answer = item.get("answer", -1)
+        explanation = str(item.get("explanation", "")).strip()
+        if not question or not isinstance(options, list) or len(options) != 4:
+            continue
+        clean_options = [str(opt).strip() for opt in options]
+        if any(not opt for opt in clean_options):
+            continue
+        try:
+            answer_idx = int(answer)
+        except (TypeError, ValueError):
+            continue
+        if answer_idx < 0 or answer_idx > 3:
+            continue
+        normalized.append(
+            {
+                "question": question,
+                "options": clean_options,
+                "answer": answer_idx,
+                "explanation": explanation,
+            }
+        )
+    if not normalized:
+        raise ValueError("No valid quiz questions returned")
+    return normalized
 
 
 def _award_xp(user_id: str) -> None:
@@ -99,8 +146,10 @@ async def quiz(request: QuizRequest, authorization: str = Header(...)):
             system=PROMPTS["quiz"],
             messages=[{"role": "user", "content": content}],
         )
+        raw_questions = _parse_json_payload(response.content[0].text)
+        questions = _normalize_quiz_questions(raw_questions)
         _award_xp(user_id)
-        return {"questions": response.content[0].text}
+        return {"questions": questions}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

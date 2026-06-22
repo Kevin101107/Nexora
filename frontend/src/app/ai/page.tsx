@@ -52,9 +52,8 @@ export default function AIPage() {
       if (mode === "quiz") {
         setMessages([]);
         setQuizQuestions([]);
-        const res = await api.post<{ questions: string }>("/ai/quiz", { topic: text, count: 5 });
-        const parsed: QuizQuestion[] = JSON.parse(res.questions);
-        setQuizQuestions(parsed);
+        const res = await api.post<{ questions: QuizQuestion[] }>("/ai/quiz", { topic: text, count: 5 });
+        setQuizQuestions(res.questions);
         setQuizAnswers({});
         setLoading(false);
         return;

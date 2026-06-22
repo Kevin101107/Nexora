@@ -10,6 +10,33 @@ import anthropic
 router = APIRouter(prefix="/flashcards", tags=["flashcards"])
 
 
+def _parse_json_payload(text: str):
+    payload = text.strip()
+    if payload.startswith("```"):
+        parts = payload.split("```")
+        if len(parts) >= 3:
+            payload = parts[1]
+            if payload.startswith("json"):
+                payload = payload[4:].strip()
+    return json.loads(payload)
+
+
+def _normalize_cards(raw) -> list[dict]:
+    if not isinstance(raw, list):
+        raise ValueError("Cards payload is not an array")
+    normalized = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        front = str(item.get("front", "")).strip()
+        back = str(item.get("back", "")).strip()
+        if front and back:
+            normalized.append({"front": front, "back": back})
+    if not normalized:
+        raise ValueError("No valid cards returned")
+    return normalized
+
+
 def _level_xp(rating: int, ease: float, interval: int) -> tuple[float, int]:
     if rating == 3:
         new_ease = min(ease + 0.1, 2.5)
@@ -120,7 +147,7 @@ async def generate_cards(req: GenerateCardsRequest, authorization: str = Header(
             max_tokens=2048,
             messages=[{"role": "user", "content": prompt}],
         )
-        cards = json.loads(response.content[0].text)
+        cards = _normalize_cards(_parse_json_payload(response.content[0].text))
         _award_xp(user_id, 2, get_supabase())
         return {"cards": cards}
     except Exception as e:

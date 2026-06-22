@@ -39,16 +39,27 @@ function createApiClient(token: string) {
     const reader = res.body?.getReader();
     if (!reader) return;
     const decoder = new TextDecoder();
+    let buffer = "";
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
-      const chunk = decoder.decode(value, { stream: true });
-      for (const line of chunk.split("\n")) {
-        if (!line.startsWith("data: ")) continue;
-        const text = line.slice(6);
-        if (text === "[DONE]" || text.startsWith("[ERROR]")) break;
-        onChunk(text);
+      buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+      let delimiterIndex = buffer.indexOf("\n\n");
+      while (delimiterIndex !== -1) {
+        const event = buffer.slice(0, delimiterIndex);
+        buffer = buffer.slice(delimiterIndex + 2);
+        const lines = event.split("\n");
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const text = line.slice(6);
+          if (text === "[DONE]") return;
+          if (text.startsWith("[ERROR]")) {
+            throw new ApiError(500, text.replace(/^\[ERROR\]\s*/, "") || "Stream failed");
+          }
+          onChunk(text);
+        }
+        delimiterIndex = buffer.indexOf("\n\n");
       }
+      if (done) break;
     }
   }
 

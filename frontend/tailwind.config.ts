@@ -9,7 +9,10 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      fontFamily: { sans: ["Inter", "sans-serif"] },
+      fontFamily: {
+        sans: ["Manrope", "Inter", "sans-serif"],
+        display: ["Cormorant Garamond", "serif"],
+      },
       colors: {
         primary: {
           DEFAULT: "#6C63FF",

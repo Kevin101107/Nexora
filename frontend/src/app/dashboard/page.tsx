@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { createApiClient } from "@/lib/api";
 import Link from "next/link";
-import { FileText, Timer, Sparkles, Layers, TrendingUp, Flame, Star } from "lucide-react";
+import { FileText, Timer, Sparkles, Layers, TrendingUp, Flame, Star, ArrowRight } from "lucide-react";
 
 interface Stats {
   notes: number;
@@ -60,19 +60,32 @@ export default function DashboardPage() {
   const xpProgress = stats.xp % 100;
 
   return (
-    <div className="max-w-4xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"},{" "}
-          <span className="text-primary">{name}</span>
-        </h1>
-        <p className="text-sm text-gray-400 dark:text-white/30 mt-1 italic">&ldquo;{quote}&rdquo;</p>
-      </div>
+    <div className="max-w-5xl editorial-atmo">
+      <section className="card mb-6 overflow-hidden bg-[#f7f4ee] dark:bg-[#15152a]">
+        <div className="flex flex-col gap-5">
+          <div className="inline-flex w-fit items-center rounded-full border border-[#e6ded0] dark:border-white/15 bg-white/70 dark:bg-white/5 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-white/55">
+            Your study command center
+          </div>
+          <h1 className="font-display text-5xl leading-[0.92] text-[#151f3f] dark:text-white sm:text-6xl">
+            Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, {name || "Student"}
+          </h1>
+          <p className="max-w-2xl text-lg text-gray-600 dark:text-white/70">{quote}</p>
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <Link href="/focus" className="btn-primary pill-cta">
+              Start Focus Session
+              <ArrowRight size={16} />
+            </Link>
+            <Link href="/ai" className="btn-outline pill-cta bg-white/80 dark:bg-white/5">
+              Ask AI Tutor
+            </Link>
+          </div>
+        </div>
+      </section>
 
       <div className="card mb-6">
-        <div className="flex items-center justify-between mb-3">
+        <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 dark:bg-primary/20">
               <Star size={15} className="text-primary" />
             </div>
             <div>
@@ -87,7 +100,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
           { label: "Notes",         value: stats.notes,                                              icon: FileText,   color: "text-blue-500",    bg: "bg-blue-50 dark:bg-blue-500/10" },
           { label: "Focus sessions", value: stats.focusSessions,                                     icon: Timer,      color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-500/10" },
@@ -104,16 +117,16 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <h2 className="text-xs font-semibold text-gray-400 dark:text-white/30 uppercase tracking-widest mb-3">Quick actions</h2>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-white/40">Quick actions</h2>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           { href: "/notes",      label: "New note",    icon: FileText, desc: "Capture ideas" },
           { href: "/focus",      label: "Start focus", icon: Timer,    desc: "Pomodoro timer" },
           { href: "/ai",         label: "Ask AI",      icon: Sparkles, desc: "Chat & explain" },
           { href: "/flashcards", label: "Flashcards",  icon: Layers,   desc: "Review & learn" },
         ].map(({ href, label, icon: Icon, desc }) => (
-          <Link key={href} href={href} className="card hover:border-primary/30 hover:shadow-md transition-all duration-150 group cursor-pointer">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 dark:bg-primary/15 flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
+          <Link key={href} href={href} className="card group cursor-pointer transition-all duration-150 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_18px_40px_rgba(108,99,255,0.16)]">
+            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20 dark:bg-primary/15">
               <Icon size={17} className="text-primary" />
             </div>
             <p className="text-sm font-semibold text-gray-900 dark:text-white">{label}</p>
