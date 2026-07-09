@@ -253,9 +253,9 @@ function LoginContent() {
           >
             {dark ? <Sun size={17} /> : <Moon size={17} />}
           </button>
-          <Link href="/signup" className="text-xs font-bold bg-primary hover:bg-primary-600 text-white px-4.5 py-2.5 rounded-full transition-all shadow-sm hover:shadow-[0_4px_12px_rgba(108,99,255,0.25)] hover:-translate-y-0.5 active:translate-y-0">
-            Sign up free
-          </Link>
+            <Link href="/signup" className="text-xs font-bold bg-primary hover:bg-primary-600 text-white px-5 py-2.5 rounded-full transition-all shadow-sm hover:shadow-[0_4px_12px_rgba(108,99,255,0.25)] hover:-translate-y-0.5 active:translate-y-0">
+              Sign up free
+            </Link>
         </div>
       </nav>
 
@@ -474,7 +474,7 @@ function LoginContent() {
             <p className="text-center text-sm text-gray-700 dark:text-white/60 font-semibold mt-6">
               No account?{" "}
               <Link href="/signup" className="text-primary font-bold hover:underline transition-colors">
-                Sign up free →
+                Create an account →
               </Link>
             </p>
           </div>
