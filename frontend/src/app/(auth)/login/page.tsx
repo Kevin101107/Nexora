@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase";
 import {
   Sparkles, Timer, Layers, BarChart3, FileText,
   Bot, Zap, CheckCircle, ArrowRight, Eye, EyeOff,
-  Flame, Target, BookOpen, Trophy,
+  Flame, Target, Trophy, Sun, Moon
 } from "lucide-react";
 
 /* ── Feature preview cards ───────────────────────────────── */
@@ -31,7 +31,17 @@ const FEATURES = [
 
 const NAV_LINKS = [
   { label: "Features", href: "#features" },
+  { label: "Pricing",  href: "#pricing" },
+  { label: "Roadmap",  href: "#roadmap" },
   { label: "About",    href: "#about" },
+  { label: "Docs",     href: "#docs" },
+];
+
+const PROMPTS_TO_TYPE = [
+  "Explain quantum physics like I'm 5...",
+  "Summarize cell division in 3 points...",
+  "Give me a quiz on JavaScript loops...",
+  "Generate 10 flashcards on organic chem...",
 ];
 
 function LoginContent() {
@@ -43,9 +53,35 @@ function LoginContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  // Dynamic Widget States
+  const [xp, setXp] = useState(0);
+  const [timerText, setTimerText] = useState("25:00");
+  const [typingText, setTypingText] = useState("");
+  
+  // Theme Switching State
+  const [dark, setDark] = useState(false);
+
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Initialize Theme
+  useEffect(() => {
+    const saved = localStorage.getItem("nexora_theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const isDark = saved ? saved === "dark" : prefersDark;
+    setDark(isDark);
+    document.documentElement.classList.toggle("dark", isDark);
+  }, []);
+
+  function toggleDark() {
+    const nextTheme = !dark;
+    setDark(nextTheme);
+    document.documentElement.classList.toggle("dark", nextTheme);
+    localStorage.setItem("nexora_theme", nextTheme ? "dark" : "light");
+  }
+
+  // Cursor following glow
   useEffect(() => {
     function handleMouseMove(e: MouseEvent) {
       if (containerRef.current) {
@@ -58,6 +94,74 @@ function LoginContent() {
     }
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, []);
+
+  // 1. XP Counter animation (counts up from 0 to 520 on load)
+  useEffect(() => {
+    let start = 0;
+    const end = 520;
+    const duration = 1200;
+    const stepTime = Math.abs(Math.floor(duration / end));
+
+    const timer = setInterval(() => {
+      start += 13;
+      if (start >= end) {
+        setXp(end);
+        clearInterval(timer);
+      } else {
+        setXp(start);
+      }
+    }, stepTime * 13);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // 2. Focus Countdown Timer (ticks down dynamically)
+  useEffect(() => {
+    let s = 25 * 60;
+    const timer = setInterval(() => {
+      s -= 1;
+      if (s < 0) s = 25 * 60;
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      setTimerText(`${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // 3. AI Tutor Typing prompt simulator
+  useEffect(() => {
+    let promptIndex = 0;
+    let charIndex = 0;
+    let isDeleting = false;
+    let typingSpeed = 80;
+
+    function type() {
+      const currentPrompt = PROMPTS_TO_TYPE[promptIndex];
+      if (isDeleting) {
+        setTypingText((prev) => prev.slice(0, -1));
+        charIndex--;
+        typingSpeed = 30;
+      } else {
+        setTypingText((prev) => prev + currentPrompt.charAt(charIndex));
+        charIndex++;
+        typingSpeed = 80;
+      }
+
+      if (!isDeleting && charIndex === currentPrompt.length) {
+        isDeleting = true;
+        typingSpeed = 2200; // Pause at the end
+      } else if (isDeleting && charIndex === 0) {
+        isDeleting = false;
+        promptIndex = (promptIndex + 1) % PROMPTS_TO_TYPE.length;
+        typingSpeed = 400; // Pause before starting new word
+      }
+
+      setTimeout(type, typingSpeed);
+    }
+
+    const timerId = setTimeout(type, 800);
+    return () => clearTimeout(timerId);
   }, []);
 
   async function handleLogin(e: React.FormEvent) {
@@ -87,7 +191,7 @@ function LoginContent() {
   return (
     <div
       ref={containerRef}
-      className="relative min-h-screen overflow-hidden bg-[#f7f5f0] dark:bg-[#08080f]"
+      className="relative min-h-screen overflow-hidden bg-[#f7f5f0] dark:bg-[#08080f] flex flex-col justify-between"
     >
       {/* ── Animated background ───────────────────────────── */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -111,7 +215,7 @@ function LoginContent() {
           }}
         />
         <div
-          className="absolute inset-0 opacity-[0.025] dark:opacity-[0.035]"
+          className="absolute inset-0 opacity-[0.035] dark:opacity-[0.05]"
           style={{
             backgroundImage: `linear-gradient(rgba(108,99,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(108,99,255,0.4) 1px, transparent 1px)`,
             backgroundSize: "60px 60px",
@@ -120,11 +224,11 @@ function LoginContent() {
       </div>
 
       {/* ── Top navigation ────────────────────────────────── */}
-      <nav className="relative z-20 flex items-center justify-between px-6 lg:px-10 py-4 animate-fade-up">
+      <nav className="relative z-20 flex items-center justify-between px-6 lg:px-10 py-4 animate-fade-up shrink-0">
         <div className="flex items-center gap-2">
           <div className="relative">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
-              <Sparkles size={15} className="text-primary" />
+            <div className="w-8.5 h-8.5 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
+              <Sparkles size={16} className="text-primary" />
             </div>
             <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary animate-glow-dot" />
           </div>
@@ -132,20 +236,31 @@ function LoginContent() {
             Nexora<span className="text-primary">.</span>
           </span>
         </div>
-        <div className="hidden sm:flex items-center gap-6">
+        
+        <div className="hidden md:flex items-center gap-7">
           {NAV_LINKS.map(({ label, href }) => (
-            <a key={label} href={href} className="nav-link text-sm font-medium text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white">
+            <a key={label} href={href} className="nav-link text-sm font-semibold text-gray-700 dark:text-white/60 hover:text-gray-955 dark:hover:text-white transition-colors">
               {label}
             </a>
           ))}
-          <Link href="/signup" className="text-sm font-semibold text-primary hover:text-primary-600 transition-colors">
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleDark}
+            className="p-2 rounded-xl text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/[0.05] transition-all"
+            title={dark ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {dark ? <Sun size={17} /> : <Moon size={17} />}
+          </button>
+          <Link href="/signup" className="text-xs font-bold bg-primary hover:bg-primary-600 text-white px-4.5 py-2.5 rounded-full transition-all shadow-sm hover:shadow-[0_4px_12px_rgba(108,99,255,0.25)] hover:-translate-y-0.5 active:translate-y-0">
             Sign up free
           </Link>
         </div>
       </nav>
 
       {/* ── Main content grid ─────────────────────────────── */}
-      <div className="relative z-10 mx-auto grid w-full max-w-7xl items-center gap-8 px-6 pb-12 pt-4 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16 lg:pt-4 lg:min-h-[calc(100vh-72px)]">
+      <div className="relative z-10 mx-auto grid w-full max-w-7xl items-center gap-8 px-6 pb-12 pt-2 lg:grid-cols-[1.18fr_0.82fr] lg:gap-16 lg:min-h-[calc(100vh-80px)] flex-1">
 
         {/* ── LEFT: Product showcase ────────────────────── */}
         <section className="hidden lg:flex flex-col justify-center">
@@ -154,7 +269,7 @@ function LoginContent() {
             <h1 className="font-display text-[3.5rem] leading-[0.92] text-[#151f3f] dark:text-white sm:text-[4.2rem] mb-4">
               Study smarter,<br />not harder.
             </h1>
-            <p className="text-lg text-gray-600 dark:text-white/55 max-w-lg leading-relaxed">
+            <p className="text-lg text-gray-700 dark:text-white/70 max-w-lg leading-relaxed font-medium">
               AI-powered notes, flashcards, focus sessions, and quizzes —
               everything you need in one beautiful workspace.
             </p>
@@ -163,7 +278,7 @@ function LoginContent() {
           {/* Feature badges */}
           <div className="animate-fade-up-1 flex flex-wrap gap-2 mb-6">
             {FEATURES.map(({ icon: Icon, label }) => (
-              <span key={label} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white/60 dark:bg-white/[0.06] border border-white/50 dark:border-white/[0.08] text-gray-700 dark:text-white/60 backdrop-blur-sm hover:border-primary/30 hover:bg-primary/5 transition-all duration-200 cursor-default">
+              <span key={label} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-white/70 dark:bg-white/[0.06] border border-white/50 dark:border-white/[0.08] text-gray-700 dark:text-white/70 backdrop-blur-sm hover:border-primary/30 hover:bg-primary/5 transition-all duration-200 cursor-default shadow-sm">
                 <Icon size={12} className="text-primary" />
                 {label}
               </span>
@@ -171,42 +286,51 @@ function LoginContent() {
           </div>
 
           {/* Trust + social proof */}
-          <p className="animate-fade-up-2 text-sm text-gray-500 dark:text-white/35 mb-8">
-            <CheckCircle size={13} className="inline -mt-0.5 mr-1 text-emerald-500" />
+          <p className="animate-fade-up-2 text-sm text-gray-700 dark:text-white/60 mb-8 font-medium">
+            <CheckCircle size={13} className="inline -mt-0.5 mr-1 text-emerald-500 animate-pulse" />
             Built by students, for students · Free to use · AI-powered by Gemini
           </p>
 
           {/* ── Dashboard preview widget ────────────────── */}
           <div className="animate-fade-up-3 glass-card rounded-2xl p-5 mb-6 max-w-md" id="about">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center">
-                <BarChart3 size={12} className="text-primary" />
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <BarChart3 size={12} className="text-primary" />
+                </div>
+                <span className="text-xs font-bold text-gray-700 dark:text-white/70 uppercase tracking-wider">Live Preview</span>
               </div>
-              <span className="text-xs font-bold text-gray-700 dark:text-white/70 uppercase tracking-wider">Live Dashboard Preview</span>
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                Interactive
+              </span>
             </div>
             <div className="grid grid-cols-3 gap-3 mb-4">
               {[
-                { label: "Total XP",      value: "520",       icon: Zap,    color: "text-primary",     bg: "bg-primary/10" },
-                { label: "Study Streak",   value: "🔥 18 days", icon: Flame,  color: "text-orange-500",  bg: "bg-orange-50 dark:bg-orange-500/10" },
-                { label: "Today's Focus",  value: "3h 20m",   icon: Target, color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-500/10" },
+                { label: "Total XP",      value: `${xp} XP`,  icon: Zap,    color: "text-primary animate-pulse",     bg: "bg-primary/10" },
+                { label: "Study Streak",   value: "18 days",   icon: Flame,  color: "text-orange-500 animate-bounce", bg: "bg-orange-50 dark:bg-orange-500/10" },
+                { label: "Focus Timer",    value: timerText,   icon: Timer,  color: "text-emerald-500",               bg: "bg-emerald-50 dark:bg-emerald-500/10" },
               ].map(({ label, value, icon: Icon, color, bg }) => (
-                <div key={label} className="stat-glow rounded-xl border border-gray-100/60 dark:border-white/[0.06] bg-white/40 dark:bg-white/[0.02] p-3 text-center cursor-default">
+                <div key={label} className="stat-glow rounded-xl border border-gray-200/50 dark:border-white/[0.06] bg-white/40 dark:bg-white/[0.02] p-3 text-center cursor-default">
                   <div className={`w-7 h-7 rounded-lg ${bg} flex items-center justify-center mx-auto mb-2`}>
                     <Icon size={13} className={color} />
                   </div>
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">{value}</p>
-                  <p className="text-[10px] text-gray-400 dark:text-white/30 mt-0.5">{label}</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">{value}</p>
+                  <p className="text-[10px] text-gray-600 dark:text-white/40 font-medium mt-0.5">{label}</p>
                 </div>
               ))}
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex-1 h-8 rounded-lg bg-white/50 dark:bg-white/[0.03] border border-gray-100/60 dark:border-white/[0.06] flex items-center px-3">
-                <Bot size={12} className="text-primary mr-2" />
-                <span className="text-[11px] text-gray-400 dark:text-white/30">Ask AI anything…</span>
+              <div className="flex-1 h-8 rounded-lg bg-white/60 dark:bg-white/[0.03] border border-gray-200/60 dark:border-white/[0.06] flex items-center px-3 select-none">
+                <Bot size={12} className="text-primary mr-2 flex-shrink-0" />
+                <span className="text-[11px] text-gray-700 dark:text-white/60 font-semibold flex items-center truncate">
+                  {typingText}
+                  <span className="w-1 h-3 ml-0.5 bg-primary dark:bg-primary-400 animate-pulse" />
+                </span>
               </div>
-              <div className="h-8 px-3 rounded-lg bg-primary/10 flex items-center gap-1.5">
+              <div className="h-8 px-3 rounded-lg bg-primary/10 flex items-center gap-1.5 shrink-0">
                 <Trophy size={11} className="text-primary" />
-                <span className="text-[11px] font-semibold text-primary">Lv. 6</span>
+                <span className="text-[11px] font-bold text-primary">Level 6</span>
               </div>
             </div>
           </div>
@@ -216,14 +340,14 @@ function LoginContent() {
             {PREVIEW_CARDS.map(({ icon: Icon, title, desc, color, darkColor, delay }) => (
               <div
                 key={title}
-                className={`feature-card group relative rounded-2xl border border-white/40 dark:border-white/[0.06] bg-white/50 dark:bg-white/[0.03] backdrop-blur-sm p-3.5 cursor-default`}
+                className={`feature-card group relative rounded-2xl border border-white/40 dark:border-white/[0.06] bg-white/60 dark:bg-white/[0.03] backdrop-blur-sm p-3.5 cursor-default`}
                 style={{ animationDelay: `${delay * 0.08}s` }}
               >
                 <div className={`feature-icon w-7 h-7 rounded-lg bg-gradient-to-br ${color} ${darkColor} flex items-center justify-center mb-2`}>
                   <Icon size={13} className="text-gray-700 dark:text-white/70" />
                 </div>
                 <h3 className="text-xs font-bold text-gray-900 dark:text-white mb-0.5">{title}</h3>
-                <p className="text-[10px] text-gray-500 dark:text-white/30 leading-relaxed">{desc}</p>
+                <p className="text-[10px] text-gray-700 dark:text-white/50 leading-relaxed font-medium">{desc}</p>
               </div>
             ))}
           </div>
@@ -244,11 +368,11 @@ function LoginContent() {
             </span>
           </div>
 
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
               Welcome back
             </h2>
-            <p className="text-sm text-gray-500 dark:text-white/40 mt-2">
+            <p className="text-sm text-gray-700 dark:text-white/60 font-medium mt-2">
               Sign in to continue your study streak
             </p>
           </div>
@@ -297,7 +421,7 @@ function LoginContent() {
                   <button
                     type="button"
                     onClick={handleForgotPassword}
-                    className="text-xs text-primary/70 hover:text-primary hover:underline font-medium transition-colors"
+                    className="text-xs text-primary hover:text-primary-600 hover:underline font-semibold transition-colors"
                   >
                     Forgot password?
                   </button>
@@ -327,7 +451,7 @@ function LoginContent() {
                 <div className="w-full border-t border-gray-200/50 dark:border-white/[0.05]" />
               </div>
               <div className="relative flex justify-center">
-                <span className="text-xs text-gray-400 dark:text-white/25 bg-white/60 dark:bg-[#16162a]/70 px-3 backdrop-blur-sm">
+                <span className="text-xs text-gray-600 dark:text-white/50 bg-white/60 dark:bg-[#16162a]/70 px-3 backdrop-blur-sm font-semibold">
                   or continue with
                 </span>
               </div>
@@ -347,9 +471,9 @@ function LoginContent() {
               Google
             </button>
 
-            <p className="text-center text-sm text-gray-500 dark:text-white/35 mt-6">
+            <p className="text-center text-sm text-gray-700 dark:text-white/60 font-semibold mt-6">
               No account?{" "}
-              <Link href="/signup" className="text-primary font-semibold hover:underline transition-colors">
+              <Link href="/signup" className="text-primary font-bold hover:underline transition-colors">
                 Sign up free →
               </Link>
             </p>
@@ -358,18 +482,30 @@ function LoginContent() {
           {/* Mobile feature badges */}
           <div className="lg:hidden flex flex-wrap justify-center gap-1.5 mt-6">
             {FEATURES.slice(0, 4).map(({ icon: Icon, label }) => (
-              <span key={label} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-white/50 dark:bg-white/[0.05] border border-white/30 dark:border-white/[0.06] text-gray-600 dark:text-white/50 backdrop-blur-sm">
+              <span key={label} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-white/50 dark:bg-white/[0.05] border border-white/30 dark:border-white/[0.06] text-gray-700 dark:text-white/60 backdrop-blur-sm">
                 <Icon size={10} className="text-primary" />
                 {label}
               </span>
             ))}
           </div>
-          <p className="lg:hidden text-center text-xs text-gray-400 dark:text-white/30 mt-3">
+          <p className="lg:hidden text-center text-xs text-gray-700 dark:text-white/60 mt-3 font-medium">
             <CheckCircle size={11} className="inline -mt-0.5 mr-0.5 text-emerald-500" />
             Free · AI-powered · Built by students
           </p>
         </div>
       </div>
+
+      {/* ── Footer / Measurable Stats ────────────────────── */}
+      <footer className="relative z-10 w-full border-t border-gray-200/50 dark:border-white/[0.05] bg-white/20 dark:bg-black/10 backdrop-blur px-6 py-6 text-center text-xs text-gray-700 dark:text-white/50 shrink-0">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 font-semibold">
+          <span>© {new Date().getFullYear()} Nexora. All rights reserved.</span>
+          <div className="flex flex-wrap justify-center gap-6">
+            <span>🚀 Join 1,000+ students</span>
+            <span>🔥 10,000+ focus sessions completed</span>
+            <span>🎓 Built by students, for students</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
@@ -380,7 +516,7 @@ export default function LoginPage() {
       <div className="min-h-screen bg-[#f7f5f0] dark:bg-[#08080f] flex items-center justify-center">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 border-3 border-primary/20 border-t-primary rounded-full animate-spin" />
-          <span className="text-gray-400 text-sm font-medium">Loading Nexora…</span>
+          <span className="text-gray-500 text-sm font-medium">Loading Nexora…</span>
         </div>
       </div>
     }>

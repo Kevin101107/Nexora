@@ -6,16 +6,16 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import {
   Sparkles, BookOpen, Timer, Layers, BarChart3, FileText,
-  Zap, CheckCircle, ArrowRight, Mail, Eye, EyeOff,
+  Zap, CheckCircle, ArrowRight, Mail, Eye, EyeOff, Sun, Moon
 } from "lucide-react";
 
 const FEATURES = [
-  { icon: Sparkles, label: "AI Tutor" },
-  { icon: Layers,   label: "Flashcards" },
-  { icon: Timer,    label: "Pomodoro" },
-  { icon: FileText, label: "Smart Notes" },
+  { icon: Sparkles,  label: "AI Tutor" },
+  { icon: Layers,    label: "Flashcards" },
+  { icon: Timer,     label: "Pomodoro" },
+  { icon: FileText,  label: "Smart Notes" },
   { icon: BarChart3, label: "Analytics" },
-  { icon: Zap,      label: "Gamification" },
+  { icon: Zap,       label: "Gamification" },
 ];
 
 const HIGHLIGHTS = [
@@ -31,13 +31,34 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  
+  // Theme state
+  const [dark, setDark] = useState(false);
+
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Initialize theme
+  useEffect(() => {
+    const saved = localStorage.getItem("nexora_theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const isDark = saved ? saved === "dark" : prefersDark;
+    setDark(isDark);
+    document.documentElement.classList.toggle("dark", isDark);
+  }, []);
+
+  function toggleDark() {
+    const nextTheme = !dark;
+    setDark(nextTheme);
+    document.documentElement.classList.toggle("dark", nextTheme);
+    localStorage.setItem("nexora_theme", nextTheme ? "dark" : "light");
+  }
+
+  // Cursor following glow
   useEffect(() => {
     function handleMouseMove(e: MouseEvent) {
       if (containerRef.current) {
@@ -79,13 +100,13 @@ export default function SignupPage() {
           <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-primary/25 to-purple-500/15 blur-3xl animate-blob-float" />
           <div className="absolute top-1/3 -right-20 w-[400px] h-[400px] rounded-full bg-gradient-to-br from-emerald-500/15 to-cyan-500/10 blur-3xl animate-blob-float-delayed" />
         </div>
-        <div className="relative glass-card rounded-3xl p-10 max-w-md w-full text-center animate-fade-up">
+        <div className="relative glass-card rounded-3xl p-10 max-w-md w-full text-center animate-fade-up animate-float-card">
           <div className="w-16 h-16 rounded-2xl bg-emerald-100 dark:bg-emerald-500/15 flex items-center justify-center mx-auto mb-5">
             <Mail size={28} className="text-emerald-600 dark:text-emerald-400" />
           </div>
           <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2">Check your email</h2>
-          <p className="text-sm text-gray-500 dark:text-white/45 leading-relaxed">
-            We sent a confirmation link to <strong className="text-gray-700 dark:text-white/70">{email}</strong>. Click it to activate your account and start studying.
+          <p className="text-sm text-gray-750 dark:text-white/60 leading-relaxed">
+            We sent a confirmation link to <strong className="text-gray-800 dark:text-white/80">{email}</strong>. Click it to activate your account and start studying.
           </p>
           <Link href="/login" className="inline-flex items-center gap-1.5 mt-6 text-sm font-semibold text-primary hover:underline">
             <ArrowRight size={14} className="rotate-180" />
@@ -99,7 +120,7 @@ export default function SignupPage() {
   return (
     <div
       ref={containerRef}
-      className="relative min-h-screen overflow-hidden bg-[#f7f5f0] dark:bg-[#08080f]"
+      className="relative min-h-screen overflow-hidden bg-[#f7f5f0] dark:bg-[#08080f] flex flex-col justify-between"
     >
       {/* ── Animated background ───────────────────────────── */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -114,29 +135,28 @@ export default function SignupPage() {
         <div className="absolute top-1/3 -right-20 w-[400px] h-[400px] rounded-full bg-gradient-to-br from-blue-500/15 to-cyan-500/10 blur-3xl animate-blob-float-delayed" />
         <div className="absolute -bottom-40 left-1/4 w-[450px] h-[450px] rounded-full bg-gradient-to-br from-violet-500/20 to-pink-500/10 blur-3xl animate-blob-float-slow" />
         <div
-          className="absolute w-[600px] h-[600px] rounded-full transition-all duration-[1500ms] ease-out pointer-events-none"
+          className="absolute w-[600px] h-[600px] rounded-full transition-all duration-[1500ms] ease-out"
           style={{
-            left: `${mousePos.x}%`,
-            top: `${mousePos.y}%`,
+            left: `${mousePos.x}%`, top: `${mousePos.y}%`,
             transform: "translate(-50%, -50%)",
             background: "radial-gradient(circle, rgba(108,99,255,0.08) 0%, transparent 70%)",
           }}
         />
         <div
-          className="absolute inset-0 opacity-[0.03] dark:opacity-[0.04]"
+          className="absolute inset-0 opacity-[0.035] dark:opacity-[0.05]"
           style={{
-            backgroundImage: `linear-gradient(rgba(108,99,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(108,99,255,0.3) 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(rgba(108,99,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(108,99,255,0.4) 1px, transparent 1px)`,
             backgroundSize: "60px 60px",
           }}
         />
       </div>
 
-      {/* ── Top nav ──────────────────────────────────────── */}
-      <nav className="relative z-20 flex items-center justify-between px-6 lg:px-10 py-4 animate-fade-up">
+      {/* ── Top navigation ────────────────────────────────── */}
+      <nav className="relative z-20 flex items-center justify-between px-6 lg:px-10 py-4 animate-fade-up shrink-0">
         <div className="flex items-center gap-2">
           <div className="relative">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
-              <Sparkles size={15} className="text-primary" />
+            <div className="w-8.5 h-8.5 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
+              <Sparkles size={16} className="text-primary" />
             </div>
             <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary animate-glow-dot" />
           </div>
@@ -144,44 +164,40 @@ export default function SignupPage() {
             Nexora<span className="text-primary">.</span>
           </span>
         </div>
-        <div className="hidden sm:flex items-center gap-6">
-          <Link href="/login" className="text-sm font-semibold text-primary hover:text-primary-600 transition-colors">
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleDark}
+            className="p-2 rounded-xl text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/[0.05] transition-all"
+            title={dark ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {dark ? <Sun size={17} /> : <Moon size={17} />}
+          </button>
+          <Link href="/login" className="text-xs font-bold bg-primary hover:bg-primary-600 text-white px-5 py-2.5 rounded-full transition-all shadow-sm hover:shadow-[0_4px_12px_rgba(108,99,255,0.25)] hover:-translate-y-0.5 active:translate-y-0">
             Sign in
           </Link>
         </div>
       </nav>
 
-      {/* ── Main content ──────────────────────────────────── */}
-      <div className="relative z-10 mx-auto grid w-full max-w-7xl items-center gap-8 px-6 pb-12 pt-4 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16 lg:min-h-[calc(100vh-72px)]">
+      {/* ── Main content grid ─────────────────────────────── */}
+      <div className="relative z-10 mx-auto grid w-full max-w-7xl items-center gap-8 px-6 pb-12 pt-2 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16 lg:min-h-[calc(100vh-80px)] flex-1">
 
         {/* ── LEFT ──────────────────────────────────────── */}
         <section className="hidden lg:block">
           <div className="animate-fade-up mb-8">
-            <div className="flex items-center gap-2.5 mb-6">
-              <div className="relative">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
-                  <Sparkles size={20} className="text-primary" />
-                </div>
-                <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-primary animate-glow-dot" />
-              </div>
-              <span className="text-2xl font-black tracking-tight text-gray-900 dark:text-white">
-                Nexora<span className="text-primary">.</span>
-              </span>
-            </div>
-
             <h1 className="font-display text-[3.5rem] leading-[0.92] text-[#151f3f] dark:text-white sm:text-[4.2rem] mb-4">
               Build habits.<br />Reach goals.
             </h1>
-            <p className="text-lg text-gray-600 dark:text-white/60 max-w-lg leading-relaxed">
+            <p className="text-lg text-gray-700 dark:text-white/70 max-w-lg leading-relaxed font-medium">
               Create your free Nexora account and turn daily study into measurable progress with AI.
             </p>
           </div>
 
-          <div className="animate-fade-up-2 flex flex-wrap gap-2 mb-8">
+          <div className="animate-fade-up-1 flex flex-wrap gap-2 mb-8">
             {FEATURES.map(({ icon: Icon, label }) => (
               <span
                 key={label}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white/60 dark:bg-white/[0.06] border border-white/50 dark:border-white/[0.08] text-gray-700 dark:text-white/60 backdrop-blur-sm"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-white/70 dark:bg-white/[0.06] border border-white/50 dark:border-white/[0.08] text-gray-700 dark:text-white/70 backdrop-blur-sm"
               >
                 <Icon size={12} className="text-primary" />
                 {label}
@@ -190,27 +206,27 @@ export default function SignupPage() {
           </div>
 
           {/* Highlights with checkmarks */}
-          <div className="animate-fade-up-3 space-y-3 mb-8">
+          <div className="animate-fade-up-2 space-y-3.5 mb-8">
             {HIGHLIGHTS.map((h) => (
               <div key={h} className="flex items-center gap-2.5">
-                <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
+                <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-500/15 flex items-center justify-center flex-shrink-0 animate-pulse">
                   <CheckCircle size={12} className="text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <span className="text-sm text-gray-600 dark:text-white/55">{h}</span>
+                <span className="text-sm text-gray-700 dark:text-white/60 font-semibold">{h}</span>
               </div>
             ))}
           </div>
 
-          <p className="animate-fade-up-4 text-sm text-gray-500 dark:text-white/35">
-            <Zap size={13} className="inline -mt-0.5 mr-1 text-primary" />
+          <p className="animate-fade-up-3 text-sm text-gray-700 dark:text-white/60 font-semibold">
+            <Zap size={13} className="inline -mt-0.5 mr-1 text-primary animate-bounce" />
             100% free · No credit card required · Get started in 30 seconds
           </p>
         </section>
 
         {/* ── RIGHT: Signup card ─────────────────────────── */}
-        <div className="w-full max-w-md justify-self-center animate-fade-up-2">
+        <div className="w-full max-w-[420px] justify-self-center animate-fade-up-2">
           {/* Mobile logo */}
-          <div className="lg:hidden flex items-center justify-center gap-2 mb-6">
+          <div className="lg:hidden flex items-center justify-center gap-2 mb-5">
             <div className="relative">
               <div className="w-9 h-9 rounded-xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
                 <Sparkles size={18} className="text-primary" />
@@ -226,13 +242,13 @@ export default function SignupPage() {
             <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
               Create your account
             </h2>
-            <p className="text-sm text-gray-500 dark:text-white/40 mt-1.5">
+            <p className="text-sm text-gray-750 dark:text-white/60 font-medium mt-2">
               Start your study journey today
             </p>
           </div>
 
-          <div className="glass-card rounded-3xl p-7">
-            <form onSubmit={handleSignup} className="space-y-4">
+          <div className="glass-card rounded-3xl p-8">
+            <form onSubmit={handleSignup} className="space-y-5">
               {error && (
                 <div className="text-sm text-red-600 dark:text-red-400 bg-red-50/80 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-xl px-3.5 py-2.5 animate-fade-up">
                   {error}
@@ -274,12 +290,12 @@ export default function SignupPage() {
               </button>
             </form>
 
-            <div className="relative my-5">
+            <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200/60 dark:border-white/[0.06]" />
+                <div className="w-full border-t border-gray-200/50 dark:border-white/[0.05]" />
               </div>
               <div className="relative flex justify-center">
-                <span className="text-xs text-gray-400 dark:text-white/25 bg-white/60 dark:bg-[#16162a]/70 px-3 backdrop-blur-sm">
+                <span className="text-xs text-gray-600 dark:text-white/50 bg-white/60 dark:bg-[#16162a]/70 px-3 backdrop-blur-sm font-semibold">
                   or continue with
                 </span>
               </div>
@@ -288,9 +304,9 @@ export default function SignupPage() {
             <button
               type="button"
               onClick={handleGoogle}
-              className="w-full flex items-center justify-center gap-2.5 rounded-xl border-2 border-gray-200/60 dark:border-white/[0.08] py-3.5 text-[15px] font-semibold text-gray-700 dark:text-white/70 bg-white/50 dark:bg-white/[0.03] hover:bg-white dark:hover:bg-white/[0.06] hover:border-gray-300 dark:hover:border-white/[0.15] hover:shadow-md transition-all duration-200"
+              className="group w-full flex items-center justify-center gap-2.5 rounded-xl border-2 border-gray-200/50 dark:border-white/[0.08] py-3.5 text-[15px] font-semibold text-gray-700 dark:text-white/70 bg-white/40 dark:bg-white/[0.03] hover:bg-white/80 dark:hover:bg-white/[0.06] hover:border-gray-300 dark:hover:border-white/[0.15] hover:shadow-lg hover:shadow-gray-200/40 dark:hover:shadow-primary/5 transition-all duration-250 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99]"
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -299,21 +315,33 @@ export default function SignupPage() {
               Google
             </button>
 
-            <p className="text-center text-sm text-gray-500 dark:text-white/35 mt-5">
+            <p className="text-center text-sm text-gray-700 dark:text-white/60 font-semibold mt-6">
               Already have an account?{" "}
-              <Link href="/login" className="text-primary font-semibold hover:underline transition-colors">
+              <Link href="/login" className="text-primary font-bold hover:underline transition-colors">
                 Sign in
               </Link>
             </p>
           </div>
 
           {/* Mobile trust */}
-          <p className="lg:hidden text-center text-xs text-gray-400 dark:text-white/30 mt-4">
+          <p className="lg:hidden text-center text-xs text-gray-700 dark:text-white/60 mt-4 font-medium">
             <CheckCircle size={11} className="inline -mt-0.5 mr-0.5 text-emerald-500" />
             Free · AI-powered · No credit card required
           </p>
         </div>
       </div>
+
+      {/* ── Footer / Measurable Stats ────────────────────── */}
+      <footer className="relative z-10 w-full border-t border-gray-200/50 dark:border-white/[0.05] bg-white/20 dark:bg-black/10 backdrop-blur px-6 py-6 text-center text-xs text-gray-700 dark:text-white/50 shrink-0">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 font-semibold">
+          <span>© {new Date().getFullYear()} Nexora. All rights reserved.</span>
+          <div className="flex flex-wrap justify-center gap-6">
+            <span>🚀 Join 1,000+ students</span>
+            <span>🔥 10,000+ focus sessions completed</span>
+            <span>🎓 Built by students, for students</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
