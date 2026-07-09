@@ -166,7 +166,7 @@ export default function DashboardPage() {
               {greetingText}, {name || "Student"}
             </h1>
             <p className="max-w-2xl text-sm text-gray-700 dark:text-white/60 leading-relaxed font-semibold italic">
-              "{quote}"
+              &ldquo;{quote}&rdquo;
             </p>
           </div>
 
@@ -191,7 +191,7 @@ export default function DashboardPage() {
           <div>
             <h3 className="text-sm font-black text-gray-900 dark:text-white mb-1.5 mt-2">Next Suggested Task</h3>
             <p className="text-xs text-gray-750 dark:text-white/70 leading-relaxed font-semibold">
-              "You haven't practiced your Chemistry Flashcards today. Reviewing them now will help lock in your memory streak."
+              &ldquo;You haven&apos;t practiced your Chemistry Flashcards today. Reviewing them now will help lock in your memory streak.&rdquo;
             </p>
           </div>
           <div className="flex items-center justify-between pt-4 border-t border-primary/20 mt-3">
