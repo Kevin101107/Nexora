@@ -85,8 +85,8 @@ export default function Sidebar() {
       </aside>
 
       <div className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 dark:border-white/[0.08] bg-white/95 dark:bg-[#0f0f17]/95 backdrop-blur">
-        <nav className="grid grid-cols-4 gap-1 px-2 py-2">
-          {NAV.slice(0, 4).map(({ href, label, icon: Icon }) => {
+        <nav className="grid grid-cols-6 gap-1 px-2 py-2">
+          {NAV.map(({ href, label, icon: Icon }) => {
             const active = pathname.startsWith(href);
             return (
               <Link

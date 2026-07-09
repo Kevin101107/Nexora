@@ -34,25 +34,28 @@ export default function DashboardPage() {
     (async () => {
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      if (!session) { setLoading(false); return; }
       const api = createApiClient(session.access_token);
 
-      const [profile, sessions] = await Promise.all([
-        api.get<any>("/users/me").catch(() => null),
-        api.get<any[]>("/focus/sessions").catch(() => []),
-      ]);
+      try {
+        const [profile, sessions] = await Promise.all([
+          api.get<any>("/users/me").catch(() => null),
+          api.get<any[]>("/focus/sessions").catch(() => []),
+        ]);
 
-      const notesRes = await supabase.from("notes").select("id", { count: "exact" }).eq("user_id", session.user.id);
-      setName(profile?.display_name || session.user.email?.split("@")[0] || "Student");
-      setStats({
-        notes: notesRes.count ?? 0,
-        focusSessions: sessions?.length ?? 0,
-        focusMinutes: sessions?.reduce((s: number, x: any) => s + (x.duration_minutes || 0), 0) ?? 0,
-        streak: profile?.streak ?? 0,
-        xp: profile?.xp ?? 0,
-        level: profile?.level ?? 1,
-      });
-      setLoading(false);
+        const notesRes = await supabase.from("notes").select("id", { count: "exact" }).eq("user_id", session.user.id);
+        setName(profile?.display_name || session.user.email?.split("@")[0] || "Student");
+        setStats({
+          notes: notesRes.count ?? 0,
+          focusSessions: sessions?.length ?? 0,
+          focusMinutes: sessions?.reduce((s: number, x: any) => s + (x.duration_minutes || 0), 0) ?? 0,
+          streak: profile?.streak ?? 0,
+          xp: profile?.xp ?? 0,
+          level: profile?.level ?? 1,
+        });
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 

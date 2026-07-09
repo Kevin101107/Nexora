@@ -162,7 +162,7 @@ export default function AIPage() {
                 {mode === "quiz" && "Enter a topic and test your knowledge"}
                 {mode === "summarize" && "Paste any text to get a concise summary"}
               </p>
-              <p className="text-sm text-gray-400 dark:text-white/25 mt-1">Powered by Claude</p>
+              <p className="text-sm text-gray-400 dark:text-white/25 mt-1">Powered by Gemini</p>
             </div>
           )}
           {messages.map((msg, i) => (
