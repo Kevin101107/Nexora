@@ -15,6 +15,12 @@ const MODES = [
 ];
 const SUBJECTS = ["Math", "Physics", "Chemistry", "Biology", "History", "English", "Computer Science", "Other"];
 
+const SOUNDS = [
+  { id: "rain", label: "Rain 🌧️", url: "https://actions.google.com/sounds/v1/weather/rain_heavy_loud.ogg" },
+  { id: "forest", label: "Forest 🌲", url: "https://actions.google.com/sounds/v1/ambiences/morning_birds.ogg" },
+  { id: "noise", label: "White Noise 💨", url: "https://actions.google.com/sounds/v1/ambiences/white_noise.ogg" },
+];
+
 export default function FocusPage() {
   const [token, setToken] = useState("");
   const [modeId, setModeId] = useState("focus_25");
@@ -22,9 +28,40 @@ export default function FocusPage() {
   const [seconds, setSeconds] = useState(25 * 60);
   const [running, setRunning] = useState(false);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [activeSound, setActiveSound] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
   const startedAt = useRef<Date>();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
+
+  function toggleSound(soundId: string) {
+    if (activeSound === soundId) {
+      audioRef.current?.pause();
+      setActiveSound(null);
+    } else {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      const sound = SOUNDS.find((s) => s.id === soundId);
+      if (sound) {
+        const audio = new Audio(sound.url);
+        audio.loop = true;
+        audio.play().catch(() => {
+          toast("Audio play blocked. Please interact with the page first.", "error");
+        });
+        audioRef.current = audio;
+        setActiveSound(soundId);
+      }
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    };
+  }, []);
 
   const mode = MODES.find((m) => m.id === modeId) ?? MODES[0];
 
@@ -143,6 +180,25 @@ export default function FocusPage() {
             <button onClick={toggleTimer} className="btn-primary px-8 py-3 gap-2">
               {running ? <><Pause size={18} /> Pause</> : <><Play size={18} /> {seconds === mode.minutes * 60 ? "Start" : "Resume"}</>}
             </button>
+          </div>
+
+          <div className="w-full border-t border-gray-100 dark:border-white/[0.08] pt-4 mt-1 mb-6">
+            <h3 className="text-xs font-semibold text-gray-400 dark:text-white/30 uppercase tracking-widest mb-3 text-center">Ambient Sounds</h3>
+            <div className="flex justify-center gap-2">
+              {SOUNDS.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => toggleSound(s.id)}
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all duration-150 ${
+                    activeSound === s.id
+                      ? "bg-primary/10 border-primary text-primary"
+                      : "border-gray-200 dark:border-white/[0.08] text-gray-600 dark:text-white/40 hover:border-primary/40"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <select value={subject} onChange={(e) => setSubject(e.target.value)} disabled={running} className="input-field w-full text-sm">

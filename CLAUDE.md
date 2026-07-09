@@ -152,11 +152,11 @@ ANTHROPIC\_API\_KEY=
 
 \- \[X] Focus timer
 
-\- \[ ] AI bot
+\- \[X] AI bot
 
-\- \[ ] Flashcards
+\- \[X] Flashcards
 
-\- \[ ] Gamification
+\- \[X] Gamification
 
 
 

@@ -99,21 +99,28 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      {profile?.badges?.length > 0 && (
-        <div className="card">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Badges</h2>
-          <div className="flex flex-wrap gap-2">
-            {profile.badges.map((b: string) => {
-              const meta = BADGE_META[b] ?? { label: b, icon: "🏅" };
-              return (
-                <span key={b} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-primary/10 dark:bg-primary/15 text-primary">
-                  {meta.icon} {meta.label}
-                </span>
-              );
-            })}
-          </div>
+      <div className="card">
+        <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Badges & Achievements</h2>
+        <div className="flex flex-wrap gap-2">
+          {Object.entries(BADGE_META).map(([key, meta]) => {
+            const unlocked = profile?.badges?.includes(key);
+            return (
+              <span
+                key={key}
+                className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${
+                  unlocked
+                    ? "bg-primary/10 dark:bg-primary/15 text-primary border-primary/20"
+                    : "bg-gray-50 dark:bg-white/[0.02] text-gray-400 dark:text-white/20 border-dashed border-gray-200 dark:border-white/[0.05] opacity-50"
+                }`}
+                title={unlocked ? "Unlocked!" : "Locked"}
+              >
+                <span>{meta.icon}</span>
+                <span>{meta.label}</span>
+              </span>
+            );
+          })}
         </div>
-      )}
+      </div>
 
       <div className="card space-y-4">
         <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Settings</h2>

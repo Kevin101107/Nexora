@@ -52,7 +52,7 @@ export default function NoteEditor({ content, onChange }: Props) {
       return;
     }
     if (content !== editor.getHTML()) {
-      editor.commands.setContent(content, false);
+      editor.commands.setContent(content, { emitUpdate: false });
     }
   }, [content, editor]);
 

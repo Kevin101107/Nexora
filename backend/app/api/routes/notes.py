@@ -11,7 +11,8 @@ def _award_xp(user_id: str, supabase) -> None:
         row = supabase.table("users").select("xp, level, badges").eq("id", user_id).single().execute().data
         if not row:
             return
-        new_xp = row["xp"] + 10
+        xp = row.get("xp", 0) or 0
+        new_xp = xp + 10
         new_level = (new_xp // 100) + 1
         badges = list(row.get("badges") or [])
         if "first_note" not in badges:

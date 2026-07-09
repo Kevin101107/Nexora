@@ -122,6 +122,7 @@ async def review_card(card_id: str, review: CardReview, authorization: str = Hea
         "next_review": next_review,
     }).eq("id", card_id).execute()
     _award_xp(user_id, 5, supabase)
+    _register_card_review(user_id, supabase)
     return updated.data[0] if updated.data else {}
 
 
@@ -135,6 +136,47 @@ async def delete_card(card_id: str, authorization: str = Header(...)):
 @router.post("/generate")
 async def generate_cards(req: GenerateCardsRequest, authorization: str = Header(...)):
     user_id = await get_user_id(authorization)
+    if settings.gemini_api_key and settings.gemini_api_key.strip():
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={settings.gemini_api_key}"
+        prompt = (
+            f"Generate {req.count} flashcards for studying the topic: {req.topic}.\n"
+            + (f"Subject area: {req.subject}.\n" if req.subject else "")
+            + 'Return ONLY a JSON array of objects with "front" and "back" string fields. No markdown, no explanation.'
+        )
+        
+        payload = {
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "responseMimeType": "application/json"
+            }
+        }
+        
+        import httpx
+        try:
+            async with httpx.AsyncClient() as client:
+                res = await client.post(url, json=payload, timeout=60.0)
+                if res.status_code == 200:
+                    data = res.json()
+                    raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
+                    cards = _normalize_cards(_parse_json_payload(raw_text))
+                    _award_xp(user_id, 2, get_supabase())
+                    return {"cards": cards}
+                else:
+                    raise Exception(f"Gemini returned status {res.status_code}: {res.text}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Gemini flashcard generation failed: {str(e)}")
+
+    if not settings.anthropic_api_key or not settings.anthropic_api_key.strip():
+        cards = [
+            {
+                "front": f"Key concept of {req.topic} (Card {i+1})",
+                "back": f"Demo definition or description for {req.topic} in Card {i+1}."
+            }
+            for i in range(req.count)
+        ]
+        _award_xp(user_id, 2, get_supabase())
+        return {"cards": cards}
+
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
     prompt = (
         f"Generate {req.count} flashcards for studying the topic: {req.topic}.\n"
@@ -159,8 +201,27 @@ def _award_xp(user_id: str, amount: int, supabase) -> None:
         row = supabase.table("users").select("xp, level").eq("id", user_id).single().execute().data
         if not row:
             return
-        new_xp = row["xp"] + amount
+        xp = row.get("xp", 0) or 0
+        new_xp = xp + amount
         new_level = (new_xp // 100) + 1
         supabase.table("users").update({"xp": new_xp, "level": new_level}).eq("id", user_id).execute()
+    except Exception:
+        pass
+
+
+def _register_card_review(user_id: str, supabase) -> None:
+    try:
+        row = supabase.table("users").select("flashcards_reviewed, badges").eq("id", user_id).single().execute().data
+        if not row:
+            return
+        reviewed = row.get("flashcards_reviewed", 0) or 0
+        new_reviewed = reviewed + 1
+        badges = list(row.get("badges") or [])
+        if new_reviewed >= 50 and "flashcard_master" not in badges:
+            badges.append("flashcard_master")
+        supabase.table("users").update({
+            "flashcards_reviewed": new_reviewed,
+            "badges": badges
+        }).eq("id", user_id).execute()
     except Exception:
         pass

@@ -88,22 +88,84 @@ def _award_xp(user_id: str) -> None:
         supabase = get_supabase()
         row = supabase.table("users").select("xp, level").eq("id", user_id).single().execute().data
         if row:
-            new_xp = row["xp"] + 2
+            xp = row.get("xp", 0) or 0
+            new_xp = xp + 2
             supabase.table("users").update({"xp": new_xp, "level": (new_xp // 100) + 1}).eq("id", user_id).execute()
     except Exception:
         pass
 
 
 async def _stream(user_id: str, system: str, messages: list):
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-    try:
-        with client.messages.stream(model=MODEL, max_tokens=2048, system=system, messages=messages) as stream:
-            for text in stream.text_stream:
-                yield f"data: {text}\n\n"
-        yield "data: [DONE]\n\n"
-        await asyncio.to_thread(_award_xp, user_id)
-    except Exception as e:
-        yield f"data: [ERROR] {str(e)}\n\n"
+    if settings.gemini_api_key and settings.gemini_api_key.strip():
+        contents = []
+        for msg in messages:
+            # Map roles to user/model for Gemini
+            role = "model" if msg["role"] == "assistant" else "user"
+            contents.append({
+                "role": role,
+                "parts": [{"text": msg["content"]}]
+            })
+        
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key={settings.gemini_api_key}&alt=sse"
+        payload = {
+            "contents": contents,
+            "systemInstruction": {
+                "parts": [{"text": system}]
+            }
+        }
+        
+        import httpx
+        try:
+            async with httpx.AsyncClient() as client:
+                async with client.stream("POST", url, json=payload, timeout=60.0) as response:
+                    if response.status_code == 200:
+                        async for line in response.aiter_lines():
+                            if line.startswith("data: "):
+                                try:
+                                    data = json.loads(line[6:])
+                                    text = data["candidates"][0]["content"]["parts"][0]["text"]
+                                    yield f"data: {text}\n\n"
+                                except Exception:
+                                    pass
+                        yield "data: [DONE]\n\n"
+                        await asyncio.to_thread(_award_xp, user_id)
+                        return
+                    else:
+                        err_text = await response.aread()
+                        raise Exception(f"Gemini API returned status {response.status_code}: {err_text.decode('utf-8')}")
+        except Exception as e:
+            yield f"data: [ERROR] Gemini error: {str(e)}\n\n"
+            return
+
+    if settings.anthropic_api_key and settings.anthropic_api_key.strip():
+        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        try:
+            with client.messages.stream(model=MODEL, max_tokens=2048, system=system, messages=messages) as stream:
+                for text in stream.text_stream:
+                    yield f"data: {text}\n\n"
+            yield "data: [DONE]\n\n"
+            await asyncio.to_thread(_award_xp, user_id)
+            return
+        except Exception as e:
+            yield f"data: [ERROR] {str(e)}\n\n"
+            return
+
+    # Run in offline/demo fallback mode
+    prompt_content = messages[-1]['content'] if messages else ""
+    mock_text = (
+        f"Hello! I am Nexora's AI Tutor.\n\n"
+        f"Since no API key (`GEMINI_API_KEY` or `ANTHROPIC_API_KEY`) is configured in `backend/.env`, "
+        f"I am running in **Offline Demo Mode**.\n\n"
+        f"Here is a mock explanation for your prompt:\n"
+        f"* **Prompt**: \"{prompt_content}\"\n"
+        f"* **System Role**: {system}\n\n"
+        f"Please configure your API keys in your `backend/.env` file to enable real responses."
+    )
+    for chunk in mock_text.split(" "):
+        yield f"data: {chunk} \n\n"
+        await asyncio.sleep(0.04)
+    yield "data: [DONE]\n\n"
+    await asyncio.to_thread(_award_xp, user_id)
 
 
 @router.post("/chat")
@@ -134,6 +196,56 @@ async def explain(request: ExplainRequest, authorization: str = Header(...)):
 @router.post("/quiz")
 async def quiz(request: QuizRequest, authorization: str = Header(...)):
     user_id = await get_user_id(authorization)
+    if settings.gemini_api_key and settings.gemini_api_key.strip():
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={settings.gemini_api_key}"
+        content = f"Generate {request.count} multiple-choice quiz questions on: {request.topic}"
+        if request.subject:
+            content += f"\nSubject: {request.subject}"
+            
+        payload = {
+            "contents": [{"role": "user", "parts": [{"text": content}]}],
+            "systemInstruction": {
+                "parts": [{"text": PROMPTS["quiz"]}]
+            },
+            "generationConfig": {
+                "responseMimeType": "application/json"
+            }
+        }
+        
+        import httpx
+        try:
+            async with httpx.AsyncClient() as client:
+                res = await client.post(url, json=payload, timeout=60.0)
+                if res.status_code == 200:
+                    data = res.json()
+                    raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
+                    raw_questions = _parse_json_payload(raw_text)
+                    questions = _normalize_quiz_questions(raw_questions)
+                    _award_xp(user_id)
+                    return {"questions": questions}
+                else:
+                    raise Exception(f"Gemini returned status {res.status_code}: {res.text}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Gemini quiz generation failed: {str(e)}")
+
+    if not settings.anthropic_api_key or not settings.anthropic_api_key.strip():
+        questions = [
+            {
+                "question": f"Topic: {request.topic}. Which of the following is true?",
+                "options": [
+                    f"Option A: Correct answer relating to {request.topic}.",
+                    "Option B: Incorrect distractor choice.",
+                    "Option C: Another incorrect distractor choice.",
+                    "Option D: General incorrect statement."
+                ],
+                "answer": 0,
+                "explanation": f"This mock question is generated in Offline Demo Mode for '{request.topic}'."
+            }
+            for i in range(request.count)
+        ]
+        _award_xp(user_id)
+        return {"questions": questions}
+
     content = f"Generate {request.count} multiple-choice quiz questions on: {request.topic}"
     if request.subject:
         content += f"\nSubject: {request.subject}"

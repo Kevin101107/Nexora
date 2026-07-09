@@ -1,4 +1,4 @@
-from datetime import date, timezone, datetime
+from datetime import date, timezone, datetime, timedelta
 from fastapi import APIRouter, HTTPException, Header
 from app.models.user import UserProfile, UserUpdate
 from app.core.supabase import get_supabase
@@ -28,7 +28,7 @@ def _upsert_streak_and_badges(user_id: str, supabase) -> None:
         streak = row.get("streak", 0) or 0
         if last == today:
             return
-        yesterday = (date.today().replace(day=date.today().day - 1) if date.today().day > 1 else date.today()).isoformat()
+        yesterday = (date.today() - timedelta(days=1)).isoformat()
         if last == yesterday:
             streak += 1
         elif last is None or last < yesterday:
@@ -37,7 +37,7 @@ def _upsert_streak_and_badges(user_id: str, supabase) -> None:
         for threshold, name in [(3, "streak_3"), (7, "streak_7"), (30, "streak_30")]:
             if streak >= threshold and name not in badges:
                 badges.append(name)
-        level = row.get("level", 1)
+        level = row.get("level", 1) or 1
         for threshold, name in [(5, "level_5"), (10, "level_10")]:
             if level >= threshold and name not in badges:
                 badges.append(name)
