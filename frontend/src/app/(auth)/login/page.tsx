@@ -7,7 +7,8 @@ import { createClient } from "@/lib/supabase";
 import {
   Sparkles, Timer, Layers, BarChart3, FileText,
   Bot, Zap, CheckCircle, ArrowRight, Eye, EyeOff,
-  Flame, Target, Trophy, Sun, Moon
+  Flame, Target, Trophy, Sun, Moon, ChevronDown,
+  BookOpen, HelpCircle, Check, Lock, Users, Calendar
 } from "lucide-react";
 
 /* ── Feature preview cards ───────────────────────────────── */
@@ -61,6 +62,9 @@ function LoginContent() {
   
   // Theme Switching State
   const [dark, setDark] = useState(false);
+  
+  // FAQ Accordion State
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
 
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
@@ -494,6 +498,294 @@ function LoginContent() {
           </p>
         </div>
       </div>
+
+      {/* ── Detailed Features Section ────────────────────── */}
+      <section id="features" className="relative z-10 w-full max-w-7xl mx-auto px-6 py-20 border-t border-gray-200/50 dark:border-white/[0.05]">
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <h2 className="font-display text-4xl sm:text-5xl text-gray-900 dark:text-white tracking-tight mb-4 font-extrabold">
+            Everything you need to <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">excel</span>
+          </h2>
+          <p className="text-base text-gray-700 dark:text-white/60 font-medium leading-relaxed">
+            Ditch the fragmented tools. Nexora brings all study workflows into one unified, elegant, and gamified workspace designed for deep focus and memorization.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-8">
+          {[
+            {
+              icon: Bot,
+              title: "Interactive AI Study Tutor",
+              desc: "Powered by Gemini, your tutor is ready to explain difficult concepts in simple terms, summarize entire notes, or generate mock exams.",
+              bullets: ["Explain-like-I'm-5 Mode", "Instant Note Summarization", "Custom Mock Quizzes"],
+              color: "from-blue-500/10 to-cyan-500/10 dark:from-blue-500/5 dark:to-cyan-500/5",
+              textColor: "text-blue-500"
+            },
+            {
+              icon: FileText,
+              title: "Smart Note Organizer",
+              desc: "A clean, distraction-free markdown editor with automatic cloud saving and subjects tagging. Keep everything categorized cleanly.",
+              bullets: ["Masonry Grid Layout", "Live Character & Word Counter", "Color-coded tags & Pinned notes"],
+              color: "from-emerald-500/10 to-teal-500/10 dark:from-emerald-500/5 dark:to-teal-500/5",
+              textColor: "text-emerald-500"
+            },
+            {
+              icon: Layers,
+              title: "AI Flashcards with Spaced Repetition",
+              desc: "Convert notes into study decks with a single click, or create flashcards manually. Study using a smart spaced repetition schedule.",
+              bullets: ["AI Card Generation", "Clean Flip Animations", "Next Review Scheduling"],
+              color: "from-amber-500/10 to-orange-500/10 dark:from-amber-500/5 dark:to-orange-500/5",
+              textColor: "text-amber-500"
+            },
+            {
+              icon: Timer,
+              title: "Gamified Pomodoro Timer",
+              desc: "Choose between standard 25, 45, or 60 minute focus intervals. Complete sessions to gain XP, unlock badges, and listen to relaxing ambient tracks.",
+              bullets: ["XP & Level Rewards", "Ambient Focus Soundscapes", "Detailed Focus Session Logging"],
+              color: "from-pink-500/10 to-rose-500/10 dark:from-pink-500/5 dark:to-rose-500/5",
+              textColor: "text-pink-500"
+            }
+          ].map(({ icon: Icon, title, desc, bullets, color, textColor }) => (
+            <div key={title} className="glass-card rounded-3xl p-8 flex flex-col justify-between">
+              <div>
+                <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${color} flex items-center justify-center mb-6`}>
+                  <Icon className={`w-6 h-6 ${textColor}`} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">{title}</h3>
+                <p className="text-sm text-gray-700 dark:text-white/60 mb-6 leading-relaxed font-semibold">{desc}</p>
+              </div>
+              <ul className="space-y-2 border-t border-gray-200/50 dark:border-white/[0.05] pt-4">
+                {bullets.map((b) => (
+                  <li key={b} className="flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-white/70">
+                    <Check size={12} className="text-emerald-500 shrink-0" />
+                    {b}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Pricing Section ──────────────────────────────── */}
+      <section id="pricing" className="relative z-10 w-full max-w-7xl mx-auto px-6 py-20 border-t border-gray-200/50 dark:border-white/[0.05]">
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <h2 className="font-display text-4xl sm:text-5xl text-gray-900 dark:text-white tracking-tight mb-4 font-extrabold">
+            Simple, student-friendly <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">pricing</span>
+          </h2>
+          <p className="text-base text-gray-700 dark:text-white/60 font-medium leading-relaxed">
+            Start completely free. We only charge for high-usage AI features to support server costs.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-8">
+          {[
+            {
+              name: "Student Plan",
+              price: "₹0",
+              period: "forever",
+              desc: "Everything a student needs to build solid daily study habits and stay organized.",
+              features: ["Unlimited Notes creation", "Complete Pomodoro focus logging", "15 AI queries per day", "Create up to 5 flashcard decks", "Track study streaks & level up"],
+              btn: "Start Studying Free",
+              active: true,
+              comingSoon: false,
+              link: "/signup"
+            },
+            {
+              name: "Pro Scholar",
+              price: "₹399",
+              period: "month",
+              desc: "Deep search and intensive research features for advanced students and researchers.",
+              features: ["Unlimited AI queries (Gemini 1.5 Pro)", "Document uploads (PDFs, PPTX, Docs)", "AI-generated summaries from uploads", "Unlimited flashcard decks", "Detailed study trends & progress reports"],
+              btn: "Join waiting list",
+              active: false,
+              comingSoon: true,
+              link: "#"
+            },
+            {
+              name: "Campus Tier",
+              price: "Custom",
+              period: "institution",
+              desc: "Tailored integrations and group spaces for study groups, classrooms, and schools.",
+              features: ["Collaborative study rooms", "Shared flashcard decks & smart notes", "Classroom dashboard for teachers", "School-wide leaderboards & events", "SSO integration & priority support"],
+              btn: "Contact sales",
+              active: false,
+              comingSoon: true,
+              link: "#"
+            }
+          ].map(({ name, price, period, desc, features, btn, active, comingSoon, link }) => (
+            <div key={name} className={`glass-card rounded-3xl p-8 flex flex-col justify-between relative overflow-hidden ${active ? 'border-primary/30 ring-1 ring-primary/20 bg-white/80 dark:bg-[#16162a]/95' : ''}`}>
+              {active && (
+                <div className="absolute top-4 right-4 bg-primary/10 dark:bg-primary/20 text-primary text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                  Active
+                </div>
+              )}
+              {comingSoon && (
+                <div className="absolute top-4 right-4 bg-gray-500/10 dark:bg-white/10 text-gray-500 dark:text-white/60 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                  Coming Soon
+                </div>
+              )}
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{name}</h3>
+                <p className="text-xs text-gray-600 dark:text-white/50 mb-6 font-semibold leading-relaxed">{desc}</p>
+                <div className="flex items-baseline gap-1 mb-8">
+                  <span className="text-4xl font-black text-gray-900 dark:text-white">{price}</span>
+                  <span className="text-sm text-gray-750 dark:text-white/40">/{period}</span>
+                </div>
+                <ul className="space-y-3.5 mb-8">
+                  {features.map((f) => (
+                    <li key={f} className="flex items-start gap-2.5 text-xs text-gray-700 dark:text-white/70 font-semibold">
+                      <CheckCircle size={14} className="text-primary shrink-0 mt-0.5" />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <Link href={link} className={`w-full text-center py-3.5 rounded-xl text-xs font-bold transition-all ${active ? 'bg-primary hover:bg-primary-600 text-white shadow-md hover:shadow-primary/20' : 'bg-gray-200/50 dark:bg-white/[0.04] text-gray-700 dark:text-white/60 border border-gray-300/30 dark:border-white/[0.06] hover:bg-gray-300/50 dark:hover:bg-white/[0.08]'}`}>
+                {btn}
+              </Link>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Roadmap Section ──────────────────────────────── */}
+      <section id="roadmap" className="relative z-10 w-full max-w-7xl mx-auto px-6 py-20 border-t border-gray-200/50 dark:border-white/[0.05]">
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <h2 className="font-display text-4xl sm:text-5xl text-gray-900 dark:text-white tracking-tight mb-4 font-extrabold">
+            Product <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">roadmap</span>
+          </h2>
+          <p className="text-base text-gray-700 dark:text-white/60 font-medium leading-relaxed">
+            See where we are heading and help us prioritize features by participating in our student community.
+          </p>
+        </div>
+
+        <div className="relative max-w-4xl mx-auto border-l-2 border-gray-200/50 dark:border-white/[0.06] pl-6 sm:pl-10 space-y-12">
+          {[
+            {
+              stage: "Q3 2026",
+              title: "Product Foundation",
+              status: "Completed",
+              badgeStyle: "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20",
+              desc: "Created our base Next.js application, integrated Supabase auth, initialized note-taking engine with rich rendering support, built custom pomodoro logging, and direct database queries."
+            },
+            {
+              stage: "Q4 2026",
+              title: "AI Integration & Revision System",
+              status: "In Progress",
+              badgeStyle: "bg-primary/10 text-primary border border-primary/20",
+              desc: "Adding AI tutor assistant leveraging Gemini models directly, designing spaced repetition engine for flashcards review queue, and building masonry layouts for smart dashboard organization."
+            },
+            {
+              stage: "Q1 2027",
+              title: "Mobile App & Offline Access",
+              status: "Planned",
+              badgeStyle: "bg-gray-500/10 text-gray-500 dark:text-white/50 border border-gray-500/20 dark:border-white/10",
+              desc: "Deploying companion iOS and Android applications. Introducing client-side database caching so you can edit notes, review flashcards, and run timers offline while synced in the cloud."
+            },
+            {
+              stage: "Q2 2027",
+              title: "Collaborative Study Rooms",
+              status: "Planned",
+              badgeStyle: "bg-gray-500/10 text-gray-500 dark:text-white/50 border border-gray-500/20 dark:border-white/10",
+              desc: "Launching study lobbies where friends can focus together via shared pomodoro timers, check in on leaderboards, and collaboratively study flashcards."
+            }
+          ].map(({ stage, title, status, badgeStyle, desc }) => (
+            <div key={title} className="relative group">
+              <div className="absolute -left-[31px] sm:-left-[47px] top-1.5 w-4 h-4 rounded-full bg-[#f7f5f0] dark:bg-[#08080f] border-2 border-primary group-hover:scale-125 transition-transform" />
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                <span className="text-xs font-bold text-gray-700 dark:text-white/40 uppercase tracking-wider">{stage}</span>
+                <span className="hidden sm:inline text-gray-350 dark:text-white/10">•</span>
+                <span className={`inline-block w-fit text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${badgeStyle}`}>{status}</span>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{title}</h3>
+              <p className="text-sm text-gray-700 dark:text-white/60 leading-relaxed font-semibold">{desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── About Section ────────────────────────────────── */}
+      <section id="about" className="relative z-10 w-full max-w-7xl mx-auto px-6 py-20 border-t border-gray-200/50 dark:border-white/[0.05]">
+        <div className="glass-card rounded-3xl p-8 sm:p-12 relative overflow-hidden bg-gradient-to-br from-white/80 to-white/40 dark:from-[#16162a]/80 dark:to-[#16162a]/30">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5 pointer-events-none" />
+          <div className="relative z-10 max-w-3xl">
+            <span className="text-xs font-bold text-primary uppercase tracking-widest block mb-3">Our Mission</span>
+            <h2 className="font-display text-3xl sm:text-4xl text-gray-900 dark:text-white tracking-tight mb-6 leading-tight font-extrabold">
+              Built by students, designed to remove distraction
+            </h2>
+            <p className="text-sm text-gray-700 dark:text-white/70 leading-relaxed mb-6 font-semibold">
+              We started Nexora because standard study tools are fragmented. You use one app for notes, another for a pomodoro timer, a browser tab for AI tutoring, and physical paper for flashcards. This switching breeds distraction.
+            </p>
+            <p className="text-sm text-gray-700 dark:text-white/70 leading-relaxed font-semibold">
+              Nexora resolves this friction by housing notes, flashcards, focus timers, and intelligent AI tutoring inside a single aesthetic study dashboard. Complete tasks to level up, earn XP, and make study habits stick.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Docs/FAQ Section ─────────────────────────────── */}
+      <section id="docs" className="relative z-10 w-full max-w-4xl mx-auto px-6 py-20 border-t border-gray-200/50 dark:border-white/[0.05]">
+        <div className="text-center mb-16">
+          <h2 className="font-display text-4xl text-gray-900 dark:text-white tracking-tight mb-4 font-extrabold">
+            Frequently Asked <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">Questions</span>
+          </h2>
+          <p className="text-sm text-gray-700 dark:text-white/60 font-semibold">
+            Have questions about the app? Here are quick answers to common inquiries.
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          {[
+            {
+              q: "How do I earn XP and level up?",
+              a: "You earn XP automatically through productive study: completing a Pomodoro focus session rewards you with +50 XP, and maintaining your daily study streak adds +10 XP per day. Earning XP updates your level directly on the dashboard."
+            },
+            {
+              q: "Can I use the AI Tutor completely for free?",
+              a: "Yes! The free Student Plan includes 15 AI Tutor queries per day. This is powered by Gemini API, offering rich explanations, note summarizations, and quiz generation."
+            },
+            {
+              q: "Is my note and profile data private?",
+              a: "Absolutely. We utilize Supabase with strict Row Level Security (RLS) policies. Your notes, flashcard decks, and focus logs are entirely private to your account and cannot be accessed by anyone else."
+            },
+            {
+              q: "How does the AI flashcard generator work?",
+              a: "When inside the flashcard module, you can input a concept or paste text from your notes, then click the 'AI Generate' button. The tutor will parse the material and automatically output matching front-and-back study cards."
+            },
+            {
+              q: "Can I access Nexora on mobile?",
+              a: "Yes, Nexora is built to be responsive from day one. The entire layout adapts to smartphones and tablets, allowing you to study notes and log focus intervals on the go."
+            }
+          ].map(({ q, a }, index) => {
+            const isOpen = openFaqIndex === index;
+            return (
+              <div
+                key={q}
+                className="glass-card rounded-2xl overflow-hidden border border-gray-200/50 dark:border-white/[0.05] transition-all duration-300"
+              >
+                <button
+                  type="button"
+                  onClick={() => setOpenFaqIndex(isOpen ? null : index)}
+                  className="w-full flex items-center justify-between p-5 text-left font-bold text-gray-900 dark:text-white text-sm hover:bg-gray-100/30 dark:hover:bg-white/[0.02] transition-colors"
+                >
+                  <span>{q}</span>
+                  <ChevronDown
+                    size={16}
+                    className={`text-gray-400 transition-transform duration-300 ${isOpen ? "transform rotate-180" : ""}`}
+                  />
+                </button>
+                <div
+                  className={`transition-all duration-300 ease-in-out ${isOpen ? "max-h-[300px] opacity-100 border-t border-gray-200/40 dark:border-white/[0.03] p-5" : "max-h-0 opacity-0 overflow-hidden"}`}
+                >
+                  <p className="text-xs text-gray-700 dark:text-white/60 leading-relaxed font-semibold">
+                    {a}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       {/* ── Footer / Measurable Stats ────────────────────── */}
       <footer className="relative z-10 w-full border-t border-gray-200/50 dark:border-white/[0.05] bg-white/20 dark:bg-black/10 backdrop-blur px-6 py-6 text-center text-xs text-gray-700 dark:text-white/50 shrink-0">
