@@ -18,9 +18,52 @@ BADGES = {
 }
 
 
+def _get_or_create_user_row(user_id: str, supabase) -> dict:
+    try:
+        res = supabase.table("users").select("*").eq("id", user_id).execute()
+        if res.data and len(res.data) > 0:
+            return res.data[0]
+    except Exception:
+        pass
+
+    auth_email = ""
+    auth_name = None
+    auth_avatar = None
+    try:
+        auth_user = supabase.auth.admin.get_user_by_id(user_id).user
+        if auth_user:
+            auth_email = auth_user.email or ""
+            meta = auth_user.user_metadata or {}
+            auth_name = meta.get("display_name") or meta.get("name")
+            auth_avatar = meta.get("avatar_url")
+    except Exception:
+        pass
+
+    new_row = {
+        "id": user_id,
+        "email": auth_email,
+        "display_name": auth_name,
+        "avatar_url": auth_avatar,
+        "xp": 0,
+        "level": 1,
+        "streak": 0,
+        "badges": [],
+        "favourite_subjects": [],
+        "daily_goal_minutes": 60,
+    }
+    try:
+        supabase.table("users").upsert(new_row).execute()
+        res = supabase.table("users").select("*").eq("id", user_id).execute()
+        if res.data:
+            return res.data[0]
+    except Exception:
+        pass
+    return new_row
+
+
 def _upsert_streak_and_badges(user_id: str, supabase) -> None:
     try:
-        row = supabase.table("users").select("streak, last_active, badges, xp, level").eq("id", user_id).single().execute().data
+        row = _get_or_create_user_row(user_id, supabase)
         if not row:
             return
         today = date.today().isoformat()
@@ -51,13 +94,18 @@ async def get_profile(authorization: str = Header(...)):
     user_id = await get_user_id(authorization)
     supabase = get_supabase()
     _upsert_streak_and_badges(user_id, supabase)
-    row = supabase.table("users").select("*").eq("id", user_id).single().execute().data
-    if not row:
-        raise HTTPException(status_code=404, detail="User not found")
-    auth_user = supabase.auth.admin.get_user_by_id(user_id).user
+    row = _get_or_create_user_row(user_id, supabase)
+    auth_email = row.get("email") or ""
+    if not auth_email:
+        try:
+            auth_user = supabase.auth.admin.get_user_by_id(user_id).user
+            auth_email = auth_user.email or ""
+        except Exception:
+            pass
+
     return UserProfile(
         id=user_id,
-        email=auth_user.email or "",
+        email=auth_email,
         display_name=row.get("display_name"),
         avatar_url=row.get("avatar_url"),
         xp=row.get("xp", 0) or 0,
@@ -72,9 +120,11 @@ async def get_profile(authorization: str = Header(...)):
 @router.put("/me")
 async def update_profile(update: UserUpdate, authorization: str = Header(...)):
     user_id = await get_user_id(authorization)
-    body = update.model_dump(exclude_none=True)
+    body = update.model_dump(exclude_unset=True)
     if not body:
         raise HTTPException(status_code=422, detail="No fields to update")
     supabase = get_supabase()
-    res = supabase.table("users").update(body).eq("id", user_id).execute()
-    return res.data[0] if res.data else {}
+    _get_or_create_user_row(user_id, supabase)
+    supabase.table("users").update(body).eq("id", user_id).execute()
+    updated_row = _get_or_create_user_row(user_id, supabase)
+    return updated_row

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { createApiClient } from "@/lib/api";
 import { useToast } from "@/components/Toast";
-import { Star, Flame, Award, Zap } from "lucide-react";
+import { Flame, Award, Zap, Loader2 } from "lucide-react";
 
 const BADGE_META: Record<string, { label: string; icon: string }> = {
   first_note:       { label: "First Note",      icon: "📝" },
@@ -20,47 +20,76 @@ const SUBJECTS = ["Math", "Physics", "Chemistry", "Biology", "History", "English
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
   const [subjects, setSubjects] = useState<string[]>([]);
   const [goalMinutes, setGoalMinutes] = useState(60);
   const [saving, setSaving] = useState(false);
-  const [token, setToken] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) return;
-      setToken(session.access_token);
-      const api = createApiClient(session.access_token);
-      const p = await api.get<any>("/users/me").catch(() => null);
-      if (p) {
-        setProfile(p);
-        setName(p.display_name || "");
-        setSubjects(p.favourite_subjects || []);
-        setGoalMinutes(p.daily_goal_minutes || 60);
+    async function loadProfile() {
+      setLoading(true);
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const api = createApiClient(session.access_token);
+        const p = await api.get<any>("/users/me").catch(() => null);
+        if (p) {
+          setProfile(p);
+          setName(p.display_name || "");
+          setSubjects(p.favourite_subjects || []);
+          setGoalMinutes(p.daily_goal_minutes || 60);
+        }
       }
-    });
+      setLoading(false);
+    }
+    loadProfile();
   }, []);
 
   async function save() {
-    if (!token) return;
     setSaving(true);
-    const api = createApiClient(token);
     try {
-      await api.put("/users/me", { display_name: name || null, favourite_subjects: subjects, daily_goal_minutes: goalMinutes });
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast("Not authenticated", "error");
+        setSaving(false);
+        return;
+      }
+      const api = createApiClient(session.access_token);
+      const sanitizedGoal = Math.min(480, Math.max(15, goalMinutes || 60));
+      const updated = await api.put<any>("/users/me", {
+        display_name: name.trim() || null,
+        favourite_subjects: subjects,
+        daily_goal_minutes: sanitizedGoal,
+      });
+      if (updated) {
+        setProfile((prev: any) => ({ ...prev, ...updated }));
+      }
       toast("Profile saved");
-    } catch { toast("Failed to save", "error"); }
-    setSaving(false);
+    } catch (err: any) {
+      toast(err?.message || "Failed to save", "error");
+    } finally {
+      setSaving(false);
+    }
   }
 
-  const xpProgress = profile ? profile.xp % 100 : 0;
+  const xpProgress = profile ? Math.min(100, Math.max(0, profile.xp % 100)) : 0;
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl space-y-6">
       <div>
         <h1 className="text-xl font-bold text-gray-900 dark:text-white">Profile</h1>
-        <p className="text-sm text-gray-400 dark:text-white/30 mt-0.5">{profile?.email}</p>
+        <p className="text-sm text-gray-400 dark:text-white/30 mt-0.5">{profile?.email || "No email"}</p>
       </div>
 
       <div className="card">
@@ -130,7 +159,14 @@ export default function ProfilePage() {
         </div>
         <div>
           <label className="label">Daily focus goal (minutes)</label>
-          <input type="number" min={15} max={480} value={goalMinutes} onChange={(e) => setGoalMinutes(Number(e.target.value))} className="input-field" />
+          <input
+            type="number"
+            min={15}
+            max={480}
+            value={goalMinutes}
+            onChange={(e) => setGoalMinutes(Number(e.target.value))}
+            className="input-field"
+          />
         </div>
         <div>
           <label className="label">Favourite subjects</label>
