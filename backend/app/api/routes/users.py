@@ -1,4 +1,5 @@
 from datetime import date, timezone, datetime, timedelta
+# pyrefly: ignore [missing-import]
 from fastapi import APIRouter, HTTPException, Header
 from app.models.user import UserProfile, UserUpdate
 from app.core.supabase import get_supabase
