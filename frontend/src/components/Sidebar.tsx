@@ -4,11 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Compass, FolderGit2, Users, Inbox, User, Sun, Moon,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Bell
 } from "lucide-react";
 import { DEVELOPMENT_USER_ID } from "@/lib/development";
 import { createApiClient } from "@/lib/api";
-import { useEffect, useState } from "react";
+import { UnreadCountResponse } from "@/lib/types";
+import { useCallback, useEffect, useState } from "react";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -16,6 +17,7 @@ const NAV = [
   { href: "/projects",  label: "Projects",  icon: FolderGit2 },
   { href: "/teams",     label: "Teams",     icon: Users },
   { href: "/requests",  label: "Requests",  icon: Inbox },
+  { href: "/notifications", label: "Inbox", icon: Bell, badge: true },
   { href: "/profile",   label: "Profile",   icon: User },
 ];
 
@@ -24,6 +26,29 @@ export default function Sidebar() {
   const [dark, setDark] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnreadCount = useCallback(() => {
+    const api = createApiClient(DEVELOPMENT_USER_ID);
+    api.get<UnreadCountResponse>("/notifications/unread-count")
+      .then((data) => setUnreadCount(data.unread_count || 0))
+      .catch(() => null);
+  }, []);
+
+  useEffect(() => {
+    fetchUnreadCount();
+    const handleFocus = () => fetchUnreadCount();
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("notifications_updated", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("notifications_updated", handleFocus);
+    };
+  }, [fetchUnreadCount]);
+
+  useEffect(() => {
+    fetchUnreadCount();
+  }, [pathname, fetchUnreadCount]);
 
   useEffect(() => {
     // Theme Initializer
@@ -85,8 +110,9 @@ export default function Sidebar() {
 
         {/* Navigation Items */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {NAV.map(({ href, label, icon: Icon }) => {
+          {NAV.map(({ href, label, icon: Icon, badge }) => {
             const active = pathname.startsWith(href);
+            const showBadge = badge && unreadCount > 0;
             return (
               <Link
                 key={href}
@@ -100,8 +126,22 @@ export default function Sidebar() {
                 }`}
                 title={collapsed ? label : undefined}
               >
-                <Icon size={16} strokeWidth={active ? 2.5 : 2} className="flex-shrink-0" />
-                {!collapsed && <span className="truncate animate-fade-up">{label}</span>}
+                <div className="relative shrink-0 flex items-center justify-center">
+                  <Icon size={16} strokeWidth={active ? 2.5 : 2} />
+                  {collapsed && showBadge && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary ring-2 ring-white dark:ring-[#0f0f17]" />
+                  )}
+                </div>
+                {!collapsed && (
+                  <>
+                    <span className="truncate animate-fade-up">{label}</span>
+                    {showBadge && (
+                      <span className="ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-primary text-white shrink-0 animate-fade-up">
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    )}
+                  </>
+                )}
               </Link>
             );
           })}
@@ -148,21 +188,29 @@ export default function Sidebar() {
 
       {/* ── Mobile Navigation ────────────────────────────── */}
       <div className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 dark:border-white/[0.08] bg-white/95 dark:bg-[#0f0f17]/95 backdrop-blur">
-        <nav className="grid grid-cols-6 gap-1 px-2 py-2">
-          {NAV.map(({ href, label, icon: Icon }) => {
+        <nav className="grid grid-cols-7 gap-1 px-1 py-2">
+          {NAV.map(({ href, label, icon: Icon, badge }) => {
             const active = pathname.startsWith(href);
+            const showBadge = badge && unreadCount > 0;
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-[11px] font-semibold ${
+                className={`flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] font-semibold ${
                   active
                     ? "text-primary bg-primary/10 dark:bg-primary/15"
                     : "text-gray-700 dark:text-white/60"
                 }`}
               >
-                <Icon size={16} />
-                <span className="leading-none">{label}</span>
+                <div className="relative">
+                  <Icon size={16} />
+                  {showBadge && (
+                    <span className="absolute -top-1 -right-2 px-1 min-w-[14px] h-3.5 flex items-center justify-center text-[8px] font-bold rounded-full bg-primary text-white">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </div>
+                <span className="leading-none truncate max-w-full">{label}</span>
               </Link>
             );
           })}

@@ -10,6 +10,7 @@ from app.models.user import PublicUserProfile
 from app.core.database import get_database
 from app.core.identity import get_user_id
 from app.core.activity import record_activity
+from app.core.notifications import create_notification
 
 router = APIRouter(prefix="/requests", tags=["requests"])
 
@@ -116,6 +117,26 @@ async def create_request(payload: TeammateRequestCreate, authorization: str = He
 
     sender = _fetch_user_public(sender_id, database)
     receiver = _fetch_user_public(payload.receiver_id, database)
+
+    sender_name = sender.display_name if (sender and sender.display_name) else (sender.username if sender else "A builder")
+    if payload.project_id and project_title:
+        notif_msg = f"{sender_name} invited you to join {project_title}" + (f" as {role_name}." if role_name else ".")
+    else:
+        notif_msg = f"{sender_name} sent you a teammate request."
+
+    create_notification(
+        database,
+        user_id=payload.receiver_id,
+        type="team_invitation_received",
+        title="New Teammate Invitation" if payload.project_id else "New Teammate Request",
+        message=notif_msg,
+        actor_id=sender_id,
+        entity_type="teammate_request",
+        entity_id=req_id,
+        project_id=payload.project_id,
+        action_url="/requests",
+        metadata={"role_id": payload.role_id, "role_name": role_name},
+    )
 
     return TeammateRequestRead(
         id=req_id,
@@ -288,7 +309,7 @@ async def respond_to_request(
 
     proj_title = None
     if req_row.get("project_id"):
-        p_res = database.table("projects").select("title").eq("id", req_row["project_id"]).execute()
+        p_res = database.table("projects").select("title, owner_id").eq("id", req_row["project_id"]).execute()
         if p_res.data and len(p_res.data) > 0:
             proj_title = p_res.data[0]["title"]
 
@@ -296,6 +317,38 @@ async def respond_to_request(
         ro_res = database.table("project_roles").select("role_name").eq("id", req_row["role_id"]).execute()
         if ro_res.data and len(ro_res.data) > 0:
             role_title = ro_res.data[0]["role_name"]
+
+    receiver_user = _fetch_user_public(req_row["receiver_id"], database)
+    receiver_name = receiver_user.display_name if (receiver_user and receiver_user.display_name) else (receiver_user.username if receiver_user else "A builder")
+
+    if payload.action == "accepted":
+        create_notification(
+            database,
+            user_id=req_row["sender_id"],
+            type="team_invitation_accepted",
+            title="Invitation Accepted",
+            message=f"{receiver_name} accepted your invitation to join {proj_title or 'the squad'}.",
+            actor_id=user_id,
+            entity_type="teammate_request",
+            entity_id=id,
+            project_id=req_row.get("project_id"),
+            action_url=f"/projects/{req_row['project_id']}/workspace" if req_row.get("project_id") else "/requests",
+            metadata={"role_id": req_row.get("role_id"), "role_name": role_title},
+        )
+    else:
+        create_notification(
+            database,
+            user_id=req_row["sender_id"],
+            type="team_invitation_declined",
+            title="Invitation Declined",
+            message=f"{receiver_name} declined your invitation to join {proj_title or 'the squad'}.",
+            actor_id=user_id,
+            entity_type="teammate_request",
+            entity_id=id,
+            project_id=req_row.get("project_id"),
+            action_url="/requests",
+            metadata={"role_id": req_row.get("role_id"), "role_name": role_title},
+        )
 
     return TeammateRequestRead(
         id=str(req_row["id"]),
@@ -344,6 +397,22 @@ async def cancel_request(id: str, authorization: str = Header(...)):
         ro_res = database.table("project_roles").select("role_name").eq("id", req_row["role_id"]).execute()
         if ro_res.data and len(ro_res.data) > 0:
             role_title = ro_res.data[0]["role_name"]
+
+    sender_u = _fetch_user_public(user_id, database)
+    sender_name = sender_u.display_name if (sender_u and sender_u.display_name) else "The sender"
+
+    create_notification(
+        database,
+        user_id=req_row["receiver_id"],
+        type="team_invitation_cancelled",
+        title="Invitation Cancelled",
+        message=f"The invitation to join {proj_title or 'the team'} was cancelled by {sender_name}.",
+        actor_id=user_id,
+        entity_type="teammate_request",
+        entity_id=id,
+        project_id=req_row.get("project_id"),
+        action_url="/requests",
+    )
 
     return TeammateRequestRead(
         id=str(req_row["id"]),

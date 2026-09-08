@@ -15,6 +15,7 @@ from app.models.user import PublicUserProfile
 from app.core.database import get_database
 from app.core.identity import get_user_id
 from app.core.activity import record_activity
+from app.core.notifications import create_notification
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -468,6 +469,8 @@ async def delete_project_member(id: str, member_id: str, authorization: str = He
     if member_row.get("user_id") == proj["owner_id"] or member_row.get("member_role") == "Owner":
         raise HTTPException(status_code=400, detail="Project owner cannot be removed from the project")
 
+    removed_user_id = member_row.get("user_id")
+
     # 5. If member held a role, decrement filled_slots and reopen role if needed
     role_id = member_row.get("role_id")
     if role_id:
@@ -476,9 +479,26 @@ async def delete_project_member(id: str, member_id: str, authorization: str = He
             role_row = r_res.data[0]
             new_filled = max(0, role_row.get("filled_slots", 1) - 1)
             role_update = {"filled_slots": new_filled}
+            role_reopened = False
             if role_row.get("status") == "filled" and new_filled < role_row.get("slots", 1):
                 role_update["status"] = "open"
+                role_reopened = True
             database.table("project_roles").update(role_update).eq("id", role_id).execute()
+
+            if role_reopened:
+                create_notification(
+                    database,
+                    user_id=proj["owner_id"],
+                    type="project_role_reopened",
+                    title="Role Reopened",
+                    message=f"{role_row['role_name']} is open again after member removal.",
+                    actor_id=removed_user_id,
+                    entity_type="project_role",
+                    entity_id=role_id,
+                    project_id=id,
+                    action_url=f"/projects/{id}",
+                    metadata={"role_id": role_id, "role_name": role_row["role_name"]},
+                )
 
     # 6. Delete member
     try:
@@ -494,6 +514,18 @@ async def delete_project_member(id: str, member_id: str, authorization: str = He
             if t_res.data:
                 for t in t_res.data:
                     database.table("tasks").update({"assignee_id": None}).eq("id", t["id"]).execute()
+                    create_notification(
+                        database,
+                        user_id=removed_user_id,
+                        type="task_unassigned",
+                        title="Task Unassigned",
+                        message=f"You were unassigned from '{t['title']}' in {proj['title']}.",
+                        actor_id=user_id,
+                        entity_type="task",
+                        entity_id=t["id"],
+                        project_id=id,
+                        action_url=f"/projects/{id}",
+                    )
         except Exception:
             pass
 
@@ -512,5 +544,19 @@ async def delete_project_member(id: str, member_id: str, authorization: str = He
             )
         except Exception:
             pass
+
+        # 9. Notify removed member
+        create_notification(
+            database,
+            user_id=removed_user_id,
+            type="member_removed_project",
+            title="Removed from Project",
+            message=f"You were removed from the squad for {proj['title']}.",
+            actor_id=user_id,
+            entity_type="member",
+            entity_id=removed_user_id,
+            project_id=id,
+            action_url=f"/projects/{id}",
+        )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)

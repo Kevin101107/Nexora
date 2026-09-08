@@ -90,6 +90,14 @@ SEED_DATA = {
   {"id":"act-6","project_id":"project-campus","actor_id":"user-alice","action_type":"task_created","entity_type":"task","entity_id":"task-2","metadata":{"task_title":"Build listing creation and photo modal","status":"todo","priority":"high"},"created_at":"2026-09-06T09:00:00+00:00"},
   {"id":"act-7","project_id":"project-campus","actor_id":"user-erin","action_type":"task_status_changed","entity_type":"task","entity_id":"task-2","metadata":{"task_title":"Build listing creation and photo modal","old_status":"todo","new_status":"in_progress"},"created_at":"2026-09-06T11:00:00+00:00"},
  ],
+ "notifications": [
+  {"id":"notif-1","user_id":"user-alice","actor_id":"user-erin","type":"task_completed","title":"Task Completed","message":"Ananya Rao completed task 'Design peer exchange browsing UI' in CampusLoop.","entity_type":"task","entity_id":"task-1","project_id":"project-campus","action_url":"/projects/project-campus/workspace","metadata":{"task_title":"Design peer exchange browsing UI"},"is_read":False,"created_at":"2026-09-05T14:30:00+00:00","read_at":None},
+  {"id":"notif-2","user_id":"user-alice","actor_id":"user-cora","type":"team_invitation_received","title":"New Teammate Invitation","message":"Zoya Khan invited you to join GreenRoute as Full-Stack Engineer.","entity_type":"teammate_request","entity_id":"req1","project_id":"project-climate","action_url":"/requests","metadata":{},"is_read":False,"created_at":"2026-09-04T12:00:00+00:00","read_at":None},
+  {"id":"notif-3","user_id":"user-alice","actor_id":"user-diego","type":"task_assigned","title":"Task Assigned","message":"You were assigned 'Build questionnaire check-in screen' in PulseCheck AI.","entity_type":"task","entity_id":"task-5","project_id":"project-health","action_url":"/projects/project-health/workspace","metadata":{"task_title":"Build questionnaire check-in screen"},"is_read":True,"created_at":"2026-09-02T10:00:00+00:00","read_at":"2026-09-02T11:00:00+00:00"},
+ ],
+ "notification_preferences": [
+  {"id":"user-alice","user_id":"user-alice","team_updates":True,"task_updates":True,"milestone_updates":True,"project_updates":True,"created_at":T,"updated_at":T},
+ ],
 }
 
 class Result:

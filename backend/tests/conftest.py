@@ -183,6 +183,8 @@ def mock_db():
         "tasks": [],
         "milestones": [],
         "project_activity": [],
+        "notifications": [],
+        "notification_preferences": [],
     }
     return db
 
@@ -208,6 +210,7 @@ def client(mock_db, monkeypatch):
         "app.api.routes.teams",
         "app.api.routes.matches",
         "app.api.routes.workspace",
+        "app.api.routes.notifications",
     ]
 
     for mod in modules_to_patch:

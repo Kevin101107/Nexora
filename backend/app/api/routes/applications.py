@@ -10,6 +10,7 @@ from app.models.user import PublicUserProfile
 from app.core.database import get_database
 from app.core.identity import get_user_id
 from app.core.activity import record_activity
+from app.core.notifications import create_notification
 from app.services.matching import calculate_match_score
 
 router = APIRouter(tags=["applications"])
@@ -105,6 +106,21 @@ async def apply_to_project(id: str, payload: ProjectApplicationCreate, authoriza
         raise HTTPException(status_code=500, detail=f"Failed to submit application: {str(e)}")
 
     applicant_profile = _fetch_user_public(user_id, database)
+    applicant_name = applicant_profile.display_name if (applicant_profile and applicant_profile.display_name) else (applicant_profile.username if applicant_profile else "A builder")
+
+    create_notification(
+        database,
+        user_id=proj["owner_id"],
+        type="application_received",
+        title="New Application Received",
+        message=f"{applicant_name} applied for {role_name or 'a role'} in {proj['title']}.",
+        actor_id=user_id,
+        entity_type="project_application",
+        entity_id=app_id,
+        project_id=id,
+        action_url=f"/projects/{id}",
+        metadata={"role_id": payload.role_id, "role_name": role_name},
+    )
 
     return ProjectApplicationRead(
         id=app_id,
@@ -306,7 +322,7 @@ async def respond_to_application(
                     action_type="member_joined",
                     entity_type="member",
                     entity_id=app_row["applicant_id"],
-                    metadata={"member_id": app_row["applicant_id"], "role_name": role_title},
+                    metadata={"member_id": app_row["applicant_id"], "role_name": role_name},
                 )
             except Exception:
                 pass
@@ -325,9 +341,52 @@ async def respond_to_application(
 
         database.table("project_applications").update({"status": "accepted"}).eq("id", id).execute()
         app_row["status"] = "accepted"
+
+        create_notification(
+            database,
+            user_id=app_row["applicant_id"],
+            type="application_accepted",
+            title="Application Accepted",
+            message=f"Your application to join {proj['title']}" + (f" as {role_name}." if role_name else " was accepted!"),
+            actor_id=user_id,
+            entity_type="project_application",
+            entity_id=id,
+            project_id=app_row["project_id"],
+            action_url=f"/projects/{app_row['project_id']}/workspace",
+            metadata={"role_id": app_row.get("role_id"), "role_name": role_name},
+        )
+
+        if role_id and new_filled >= slots:
+            create_notification(
+                database,
+                user_id=proj["owner_id"],
+                type="project_role_filled",
+                title="Role Filled",
+                message=f"Role '{role_name}' in {proj['title']} is now filled.",
+                actor_id=app_row["applicant_id"],
+                entity_type="project_role",
+                entity_id=role_id,
+                project_id=app_row["project_id"],
+                action_url=f"/projects/{app_row['project_id']}",
+                metadata={"role_id": role_id, "role_name": role_name},
+            )
     else:
         database.table("project_applications").update({"status": "rejected"}).eq("id", id).execute()
         app_row["status"] = "rejected"
+
+        create_notification(
+            database,
+            user_id=app_row["applicant_id"],
+            type="application_declined",
+            title="Application Declined",
+            message=f"Your application to join {proj['title']} was declined.",
+            actor_id=user_id,
+            entity_type="project_application",
+            entity_id=id,
+            project_id=app_row["project_id"],
+            action_url=f"/projects/{app_row['project_id']}",
+            metadata={"role_id": app_row.get("role_id"), "role_name": role_name},
+        )
 
     applicant = _fetch_user_public(app_row["applicant_id"], database)
 

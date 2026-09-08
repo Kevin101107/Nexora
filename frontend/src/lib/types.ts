@@ -237,3 +237,60 @@ export interface WorkspaceOverview {
   is_owner: boolean;
 }
 
+export type NotificationType =
+  | "team_invitation_received"
+  | "team_invitation_accepted"
+  | "team_invitation_declined"
+  | "team_invitation_cancelled"
+  | "application_received"
+  | "application_accepted"
+  | "application_declined"
+  | "member_joined_project"
+  | "member_removed_project"
+  | "task_assigned"
+  | "task_reassigned"
+  | "task_unassigned"
+  | "task_status_changed"
+  | "task_completed"
+  | "milestone_created"
+  | "milestone_updated"
+  | "milestone_completed"
+  | "project_role_filled"
+  | "project_role_reopened";
+
+export interface NotificationItem {
+  id: string;
+  user_id: string;
+  actor_id?: string | null;
+  actor?: PublicUserProfile | null;
+  type: string;
+  title: string;
+  message: string;
+  entity_type?: string | null;
+  entity_id?: string | null;
+  project_id?: string | null;
+  action_url?: string | null;
+  metadata: Record<string, any>;
+  is_read: boolean;
+  created_at: string;
+  read_at?: string | null;
+}
+
+export interface NotificationListResponse {
+  notifications: NotificationItem[];
+  unread_count: number;
+}
+
+export interface UnreadCountResponse {
+  unread_count: number;
+}
+
+export interface NotificationPreferences {
+  user_id: string;
+  team_updates: boolean;
+  task_updates: boolean;
+  milestone_updates: boolean;
+  project_updates: boolean;
+  created_at: string;
+  updated_at: string;
+}

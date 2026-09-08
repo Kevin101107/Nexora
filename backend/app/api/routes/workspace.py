@@ -6,6 +6,8 @@ from fastapi import APIRouter, HTTPException, Header, Query, Response, status
 from app.core.database import get_database
 from app.core.identity import get_user_id
 from app.core.activity import record_activity
+from app.core.notifications import create_notification
+from app.models.notification import NotificationType
 from app.models.user import PublicUserProfile
 from app.models.workspace import (
     TaskCreate,
@@ -375,6 +377,19 @@ async def create_project_task(
             entity_id=task_id,
             metadata={"task_title": task_row["title"], "assignee_id": payload.assignee_id, "assignee_name": assignee_name},
         )
+        create_notification(
+            database,
+            user_id=payload.assignee_id,
+            type=NotificationType.task_assigned.value,
+            title=f"New task assigned: {task_row['title']}",
+            message=f"You were assigned '{task_row['title']}' in {project.get('title', 'the project')}.",
+            actor_id=user_id,
+            entity_type="task",
+            entity_id=task_id,
+            project_id=id,
+            action_url=f"/projects/{id}/workspace",
+            metadata={"task_title": task_row["title"], "project_title": project.get("title")},
+        )
 
     return _build_task_read(task_row, database)
 
@@ -453,9 +468,12 @@ async def update_project_task(
 
     updated_task = {**existing_task, **updates}
 
-    # Record activity
+    # Record activity & send notifications
     old_status = existing_task.get("status")
     new_status = updates.get("status")
+    task_title = updated_task.get("title", "Task")
+    project_title = project.get("title", "the project")
+
     if new_status and new_status != old_status:
         record_activity(
             database,
@@ -464,8 +482,23 @@ async def update_project_task(
             action_type="task_status_changed",
             entity_type="task",
             entity_id=task_id,
-            metadata={"task_title": updated_task["title"], "old_status": old_status, "new_status": new_status},
+            metadata={"task_title": task_title, "old_status": old_status, "new_status": new_status},
         )
+        if user_id != project.get("owner_id"):
+            create_notification(
+                database,
+                user_id=project["owner_id"],
+                type=NotificationType.task_status_changed.value,
+                title=f"Task status updated: {task_title}",
+                message=f"Task '{task_title}' status changed to {new_status} in {project_title}.",
+                actor_id=user_id,
+                entity_type="task",
+                entity_id=task_id,
+                project_id=id,
+                action_url=f"/projects/{id}/workspace",
+                metadata={"task_title": task_title, "old_status": old_status, "new_status": new_status, "project_title": project_title},
+            )
+
         if new_status == "done":
             record_activity(
                 database,
@@ -474,23 +507,68 @@ async def update_project_task(
                 action_type="task_completed",
                 entity_type="task",
                 entity_id=task_id,
-                metadata={"task_title": updated_task["title"]},
+                metadata={"task_title": task_title},
             )
+            if user_id != project.get("owner_id") and old_status != "done":
+                create_notification(
+                    database,
+                    user_id=project["owner_id"],
+                    type=NotificationType.task_completed.value,
+                    title=f"Task completed: {task_title}",
+                    message=f"Task '{task_title}' was marked as complete in {project_title}.",
+                    actor_id=user_id,
+                    entity_type="task",
+                    entity_id=task_id,
+                    project_id=id,
+                    action_url=f"/projects/{id}/workspace",
+                    metadata={"task_title": task_title, "project_title": project_title},
+                )
 
     old_assignee = existing_task.get("assignee_id")
-    new_assignee = updates.get("assignee_id")
-    if "assignee_id" in updates and new_assignee != old_assignee and new_assignee:
-        assignee_u = _fetch_user_public(new_assignee, database)
-        assignee_name = assignee_u.display_name if assignee_u else new_assignee
-        record_activity(
-            database,
-            project_id=id,
-            actor_id=user_id,
-            action_type="task_assigned",
-            entity_type="task",
-            entity_id=task_id,
-            metadata={"task_title": updated_task["title"], "assignee_id": new_assignee, "assignee_name": assignee_name},
-        )
+    if "assignee_id" in updates:
+        new_assignee = updates.get("assignee_id")
+        if new_assignee != old_assignee:
+            if new_assignee:
+                assignee_u = _fetch_user_public(new_assignee, database)
+                assignee_name = assignee_u.display_name if assignee_u else new_assignee
+                record_activity(
+                    database,
+                    project_id=id,
+                    actor_id=user_id,
+                    action_type="task_assigned",
+                    entity_type="task",
+                    entity_id=task_id,
+                    metadata={"task_title": task_title, "assignee_id": new_assignee, "assignee_name": assignee_name},
+                )
+                notif_type = NotificationType.task_reassigned.value if old_assignee else NotificationType.task_assigned.value
+                notif_title = f"Task reassigned: {task_title}" if old_assignee else f"New task assigned: {task_title}"
+                create_notification(
+                    database,
+                    user_id=new_assignee,
+                    type=notif_type,
+                    title=notif_title,
+                    message=f"You were assigned '{task_title}' in {project_title}.",
+                    actor_id=user_id,
+                    entity_type="task",
+                    entity_id=task_id,
+                    project_id=id,
+                    action_url=f"/projects/{id}/workspace",
+                    metadata={"task_title": task_title, "project_title": project_title},
+                )
+            if old_assignee:
+                create_notification(
+                    database,
+                    user_id=old_assignee,
+                    type=NotificationType.task_unassigned.value,
+                    title=f"Task unassigned: {task_title}",
+                    message=f"You were unassigned from '{task_title}' in {project_title}.",
+                    actor_id=user_id,
+                    entity_type="task",
+                    entity_id=task_id,
+                    project_id=id,
+                    action_url=f"/projects/{id}/workspace",
+                    metadata={"task_title": task_title, "project_title": project_title},
+                )
 
     return _build_task_read(updated_task, database)
 
@@ -593,6 +671,24 @@ async def create_project_milestone(
         metadata={"milestone_title": ms_row["title"]},
     )
 
+    project_title = project.get("title", "the project")
+    m_res = database.table("project_members").select("user_id").eq("project_id", id).execute()
+    squad_members = [m["user_id"] for m in (m_res.data or []) if m.get("user_id")]
+    for member_uid in squad_members:
+        create_notification(
+            database,
+            user_id=member_uid,
+            type=NotificationType.milestone_created.value,
+            title=f"New milestone: {ms_row['title']}",
+            message=f"A new milestone '{ms_row['title']}' was added to {project_title}.",
+            actor_id=user_id,
+            entity_type="milestone",
+            entity_id=ms_id,
+            project_id=id,
+            action_url=f"/projects/{id}/workspace",
+            metadata={"milestone_title": ms_row["title"], "project_title": project_title},
+        )
+
     return MilestoneRead(
         id=ms_id,
         project_id=id,
@@ -655,6 +751,18 @@ async def update_project_milestone(
         metadata={"milestone_title": updated_ms["title"], "status": updated_ms.get("status")},
     )
 
+    project_title = project.get("title", "the project")
+    old_ms_status = existing_ms.get("status")
+    new_ms_status = updates.get("status", old_ms_status)
+    old_due = existing_ms.get("due_date")
+    new_due = updates.get("due_date", old_due)
+
+    status_changed = "status" in updates and new_ms_status != old_ms_status
+    due_changed = "due_date" in updates and new_due != old_due
+
+    m_res = database.table("project_members").select("user_id").eq("project_id", id).execute()
+    squad_members = [m["user_id"] for m in (m_res.data or []) if m.get("user_id")]
+
     if updates.get("status") == "completed" and existing_ms.get("status") != "completed":
         record_activity(
             database,
@@ -665,6 +773,35 @@ async def update_project_milestone(
             entity_id=milestone_id,
             metadata={"milestone_title": updated_ms["title"]},
         )
+        for member_uid in squad_members:
+            create_notification(
+                database,
+                user_id=member_uid,
+                type=NotificationType.milestone_completed.value,
+                title=f"Milestone completed: {updated_ms['title']}",
+                message=f"Milestone '{updated_ms['title']}' was marked as completed in {project_title}.",
+                actor_id=user_id,
+                entity_type="milestone",
+                entity_id=milestone_id,
+                project_id=id,
+                action_url=f"/projects/{id}/workspace",
+                metadata={"milestone_title": updated_ms["title"], "project_title": project_title},
+            )
+    elif status_changed or due_changed:
+        for member_uid in squad_members:
+            create_notification(
+                database,
+                user_id=member_uid,
+                type=NotificationType.milestone_updated.value,
+                title=f"Milestone updated: {updated_ms['title']}",
+                message=f"Milestone '{updated_ms['title']}' was updated in {project_title}.",
+                actor_id=user_id,
+                entity_type="milestone",
+                entity_id=milestone_id,
+                project_id=id,
+                action_url=f"/projects/{id}/workspace",
+                metadata={"milestone_title": updated_ms["title"], "project_title": project_title},
+            )
 
     t_res = database.table("tasks").select("*").eq("project_id", id).execute()
     all_tasks = t_res.data or []
