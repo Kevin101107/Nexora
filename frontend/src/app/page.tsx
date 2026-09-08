@@ -40,13 +40,13 @@ export default function HomePage() {
           <div className="flex items-center gap-3">
             <DarkModeToggle />
             <Link
-              href="/login"
+              href="/dashboard"
               className="text-sm font-semibold px-4 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors"
             >
-              Sign In
+              Open Demo
             </Link>
             <Link
-              href="/signup"
+              href="/profile/edit"
               className="text-sm font-semibold px-4 py-2 rounded-xl bg-primary text-white hover:bg-primary-600 transition-all shadow-sm shadow-primary/20"
             >
               Get Started
@@ -79,14 +79,14 @@ export default function HomePage() {
 
             <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
-                href="/signup"
+                href="/profile/edit"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl bg-primary text-white font-bold text-base hover:bg-primary-600 transition-all shadow-lg shadow-primary/25 hover:-translate-y-0.5 active:translate-y-0"
               >
                 <span>Create Your Builder Profile</span>
                 <ArrowRight size={18} />
               </Link>
               <Link
-                href="/login"
+                href="/projects"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl border border-gray-300 dark:border-white/10 bg-white/60 dark:bg-white/[0.04] text-gray-800 dark:text-gray-100 font-bold text-base hover:bg-white dark:hover:bg-white/[0.08] transition-all"
               >
                 <span>Browse Projects</span>
@@ -292,12 +292,11 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© {new Date().getFullYear()} Nexora. Find the right people to build with.</p>
           <div className="flex gap-6 font-semibold">
-            <Link href="/login" className="hover:text-primary transition-colors">Sign In</Link>
-            <Link href="/signup" className="hover:text-primary transition-colors">Sign Up</Link>
+            <Link href="/dashboard" className="hover:text-primary transition-colors">Open Demo</Link>
+            <Link href="/profile/edit" className="hover:text-primary transition-colors">Edit Builder Profile</Link>
           </div>
         </div>
       </footer>
     </div>
   );
 }
-

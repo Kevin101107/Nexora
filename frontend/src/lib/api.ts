@@ -13,17 +13,24 @@ function createApiClient(token: string) {
   });
 
   async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const res = await fetch(`${BASE}/api${path}`, {
-      method,
-      headers: headers(),
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: "Request failed" }));
-      throw new ApiError(res.status, err.detail ?? "Request failed");
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    try {
+      const res = await fetch(`${BASE}/api${path}`, {
+        method,
+        headers: headers(),
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: "Request failed" }));
+        throw new ApiError(res.status, err.detail ?? "Request failed");
+      }
+      if (res.status === 204) return undefined as T;
+      return res.json();
+    } finally {
+      clearTimeout(timeoutId);
     }
-    if (res.status === 204) return undefined as T;
-    return res.json();
   }
 
   async function stream(path: string, body: unknown, onChunk: (text: string) => void): Promise<void> {
