@@ -273,7 +273,7 @@ export default function HomePage() {
             <div className="p-6 rounded-2xl bg-white dark:bg-[#16162a] border border-gray-200 dark:border-white/[0.06]">
               <h4 className="font-bold text-base text-gray-900 dark:text-white mb-2">How does the compatibility match score work?</h4>
               <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                Match Score V1 is deterministic and explainable. It calculates overlap and synergy between your skills, required project roles, timezones, and hackathon intent—no mysterious black-box algorithms.
+                Match Score V2 is deterministic, explainable, and cold-start safe. It evaluates skill overlap (45%), role experience (20%), availability (15%), task reliability (10%), and project lifecycles (10%)—with zero mysterious black-box algorithms.
               </p>
             </div>
 

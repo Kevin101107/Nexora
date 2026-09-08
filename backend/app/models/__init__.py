@@ -25,6 +25,15 @@ from app.models.match import (
     RoleCandidateMatch,
     UserRoleRecommendation,
 )
+from app.models.contribution import (
+    ContributionSummary,
+    ProjectContribution,
+    RoleContribution,
+    RecentContribution,
+    CollaborationSignals,
+    ContributionBadge,
+    ContributionProfileResponse,
+)
 
 __all__ = [
     "PublicUserProfile",
@@ -49,4 +58,11 @@ __all__ = [
     "UserRoleMatchResponse",
     "RoleCandidateMatch",
     "UserRoleRecommendation",
+    "ContributionSummary",
+    "ProjectContribution",
+    "RoleContribution",
+    "RecentContribution",
+    "CollaborationSignals",
+    "ContributionBadge",
+    "ContributionProfileResponse",
 ]

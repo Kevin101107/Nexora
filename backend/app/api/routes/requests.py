@@ -274,6 +274,19 @@ async def respond_to_request(
                     "role_id": role_id,
                     "member_role": "Member",
                 }).execute()
+                try:
+                    database.table("project_membership_history").insert({
+                        "id": str(uuid.uuid4()),
+                        "project_id": project_id,
+                        "user_id": user_id,
+                        "role_id": role_id,
+                        "role_name": role_title or "Squad Member",
+                        "joined_at": datetime.now(timezone.utc).isoformat(),
+                        "left_at": None,
+                        "status": "active",
+                    }).execute()
+                except Exception:
+                    pass
 
                 try:
                     record_activity(

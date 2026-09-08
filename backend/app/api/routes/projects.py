@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Header, Query, Response, status
 from app.models.project import (
@@ -150,6 +151,16 @@ async def create_project(payload: ProjectCreate, authorization: str = Header(...
             "user_id": user_id,
             "member_role": "Owner",
         }).execute()
+        database.table("project_membership_history").insert({
+            "id": str(uuid.uuid4()),
+            "project_id": proj_id,
+            "user_id": user_id,
+            "role_id": None,
+            "role_name": "Project Owner",
+            "joined_at": datetime.now(timezone.utc).isoformat(),
+            "left_at": None,
+            "status": "active",
+        }).execute()
     except Exception:
         pass
 
@@ -297,11 +308,33 @@ async def update_project(id: str, payload: ProjectUpdate, authorization: str = H
     if proj["owner_id"] != user_id:
         raise HTTPException(status_code=403, detail="Only project owner can update this project")
 
+    old_status = proj.get("status")
     body = payload.model_dump(exclude_unset=True)
     if body:
         try:
             database.table("projects").update(body).eq("id", id).execute()
             proj.update(body)
+            new_status = body.get("status")
+            if new_status and new_status != old_status:
+                record_activity(
+                    database,
+                    project_id=id,
+                    actor_id=user_id,
+                    action_type="project_status_changed",
+                    entity_type="project",
+                    entity_id=id,
+                    metadata={"title": proj.get("title"), "old_status": old_status, "new_status": new_status},
+                )
+                if new_status == "completed":
+                    record_activity(
+                        database,
+                        project_id=id,
+                        actor_id=user_id,
+                        action_type="project_completed",
+                        entity_type="project",
+                        entity_id=id,
+                        metadata={"title": proj.get("title")},
+                    )
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to update project: {str(e)}")
 
@@ -500,32 +533,56 @@ async def delete_project_member(id: str, member_id: str, authorization: str = He
                     metadata={"role_id": role_id, "role_name": role_row["role_name"]},
                 )
 
-    # 6. Delete member
+    # 6. Delete member and update membership history
+    now_iso = datetime.now(timezone.utc).isoformat()
     try:
+        pmh_res = database.table("project_membership_history").select("*").eq("project_id", id).eq("user_id", removed_user_id).execute()
+        if pmh_res.data and len(pmh_res.data) > 0:
+            database.table("project_membership_history").update({
+                "status": "removed",
+                "left_at": now_iso
+            }).eq("project_id", id).eq("user_id", removed_user_id).execute()
+        else:
+            role_title = "Squad Member"
+            if member_row.get("role_id"):
+                r_lookup = database.table("project_roles").select("role_name").eq("id", member_row["role_id"]).execute()
+                if r_lookup.data:
+                    role_title = r_lookup.data[0].get("role_name") or role_title
+            database.table("project_membership_history").insert({
+                "id": str(uuid.uuid4()),
+                "project_id": id,
+                "user_id": removed_user_id,
+                "role_id": member_row.get("role_id"),
+                "role_name": role_title,
+                "joined_at": member_row.get("joined_at") or now_iso,
+                "left_at": now_iso,
+                "status": "removed"
+            }).execute()
         database.table("project_members").delete().eq("id", member_id).execute()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to remove member: {str(e)}")
 
-    # 7. Unassign all tasks assigned to the removed member in this project
+    # 7. Unassign incomplete tasks assigned to the removed member in this project (preserve completed tasks)
     removed_user_id = member_row.get("user_id")
     if removed_user_id:
         try:
             t_res = database.table("tasks").select("*").eq("project_id", id).eq("assignee_id", removed_user_id).execute()
             if t_res.data:
                 for t in t_res.data:
-                    database.table("tasks").update({"assignee_id": None}).eq("id", t["id"]).execute()
-                    create_notification(
-                        database,
-                        user_id=removed_user_id,
-                        type="task_unassigned",
-                        title="Task Unassigned",
-                        message=f"You were unassigned from '{t['title']}' in {proj['title']}.",
-                        actor_id=user_id,
-                        entity_type="task",
-                        entity_id=t["id"],
-                        project_id=id,
-                        action_url=f"/projects/{id}",
-                    )
+                    if t.get("status") != "done":
+                        database.table("tasks").update({"assignee_id": None}).eq("id", t["id"]).execute()
+                        create_notification(
+                            database,
+                            user_id=removed_user_id,
+                            type="task_unassigned",
+                            title="Task Unassigned",
+                            message=f"You were unassigned from '{t['title']}' in {proj['title']}.",
+                            actor_id=user_id,
+                            entity_type="task",
+                            entity_id=t["id"],
+                            project_id=id,
+                            action_url=f"/projects/{id}",
+                        )
         except Exception:
             pass
 

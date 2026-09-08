@@ -8,6 +8,14 @@ WEIGHT_SKILL = 0.60
 WEIGHT_ROLE = 0.25
 WEIGHT_AVAILABILITY = 0.15
 
+# V2 Weights
+WEIGHT_V2_SKILL = 0.45
+WEIGHT_V2_ROLE = 0.20
+WEIGHT_V2_AVAILABILITY = 0.15
+WEIGHT_V2_RELIABILITY = 0.10
+WEIGHT_V2_PROJECT = 0.10
+
+
 # Role Canonicalization / Explicit Alias Map
 # Only explicit, documented aliases are mapped here.
 ROLE_ALIASES: Dict[str, str] = {
@@ -69,8 +77,23 @@ class MatchScoreResult(BaseModel):
     role_match: bool
     availability_match: bool
     reasons: List[str] = Field(default_factory=list)
-    evidence_quality: Literal["high", "medium", "low"]
+    evidence_quality: Literal["high", "medium", "low"] = "high"
     score_label: str
+    total_score: Optional[int] = None
+    role_experience_score: Optional[int] = None
+    reliability_score: Optional[int] = None
+    project_experience_score: Optional[int] = None
+    missing_requirements: List[str] = Field(default_factory=list)
+    version: str = "v1"
+
+
+class MatchScoreV2(MatchScoreResult):
+    total_score: int
+    role_experience_score: int
+    reliability_score: int
+    project_experience_score: int
+    missing_requirements: List[str] = Field(default_factory=list)
+    version: str = "v2"
 
 
 # ── Pure Helper Functions ─────────────────────────────────────────────────────
@@ -344,4 +367,156 @@ def calculate_match_score(
         reasons=reasons,
         evidence_quality=evidence_quality,
         score_label=get_score_label(final_score),
+    )
+
+
+def calculate_match_score_v2(
+    user_skills: Optional[List[str]],
+    user_roles: Optional[List[str]],
+    user_availability: Optional[str],
+    role_name: Optional[str],
+    required_skills: Optional[List[str]],
+    project_category: Optional[str],
+    verified_roles: Optional[List[str]] = None,
+    tasks_assigned: Optional[int] = None,
+    tasks_completed: Optional[int] = None,
+    projects_joined: Optional[int] = None,
+    completed_projects: Optional[int] = None,
+) -> MatchScoreV2:
+    """
+    Match Score V2 implementation:
+    - Skill Match (45%)
+    - Role Experience (20%)
+    - Availability (15%)
+    - Contribution Reliability (10%)
+    - Project Experience (10%)
+    Deterministic, explainable, and protective of cold-start builders.
+    """
+    missing_requirements: List[str] = []
+    reasons: List[str] = []
+
+    # 1. Skill match (45%)
+    skill_score, matched_skills, missing_skills, _ = calculate_skill_match(
+        user_skills, required_skills
+    )
+    if missing_skills:
+        missing_requirements.extend(missing_skills)
+        reasons.append(f"○ Matched {len(matched_skills)}/{len(required_skills or [])} required skills (missing: {', '.join(missing_skills)})")
+    else:
+        req_count = len(required_skills or [])
+        if req_count > 0:
+            reasons.append(f"✓ All {req_count} required skills matched ({', '.join(matched_skills)})")
+        else:
+            reasons.append("○ Role has no specific skill requirements")
+
+    # 2. Role experience (20%)
+    target_clean = (role_name or "").strip()
+    target_canonical = canonicalize_role(target_clean)
+    role_match = False
+
+    # Check verified roles first
+    verified_canonical = [canonicalize_role(r) for r in (verified_roles or [])]
+    user_declared_canonical = [canonicalize_role(r) for r in (user_roles or [])]
+
+    if target_canonical and target_canonical in verified_canonical:
+        role_experience_score = 100
+        role_match = True
+        reasons.append(f"✓ Verified previous experience as {target_clean} on Nexora")
+    elif target_canonical and target_canonical in user_declared_canonical:
+        role_experience_score = 100
+        role_match = True
+        reasons.append(f"✓ Preferred role matches {target_clean}")
+    elif verified_roles:
+        role_experience_score = 50
+        role_match = False
+        reasons.append(f"○ Verified background in related role ({verified_roles[0]})")
+    elif user_roles:
+        role_experience_score = 30
+        role_match = False
+        reasons.append(f"○ Listed preferred roles do not match {target_clean}")
+        missing_requirements.append(f"Role mismatch with {target_clean}")
+    else:
+        role_experience_score = 50
+        role_match = False
+        reasons.append(f"○ No role experience specified for {target_clean}")
+
+    # 3. Availability match (15%)
+    avail_score, avail_match, avail_reason = calculate_availability_match(
+        user_availability, project_category
+    )
+    norm_avail = normalize_value(user_availability)
+    if norm_avail == "busy":
+        missing_requirements.append("Builder is marked as busy")
+        reasons.append("✗ Builder is currently marked as busy")
+    elif avail_match:
+        reasons.append(f"✓ {avail_reason}")
+    else:
+        reasons.append(f"○ {avail_reason}")
+
+    # 4. Contribution Reliability (10%)
+    if tasks_assigned is None or tasks_assigned < 3:
+        # Cold start: neutral baseline score so new users are not penalized
+        reliability_score = 100
+        reasons.append("○ New contributor (neutral reliability baseline applied)")
+    else:
+        assigned_val = tasks_assigned
+        completed_val = tasks_completed or 0
+        rate = round((completed_val / assigned_val) * 100.0, 1) if assigned_val > 0 else 0.0
+        reliability_score = max(0, min(100, int(round(rate))))
+        if rate >= 80.0:
+            reasons.append(f"✓ {rate}% verified task completion rate ({completed_val}/{assigned_val} tasks)")
+        elif rate >= 50.0:
+            reasons.append(f"○ {rate}% verified task completion rate ({completed_val}/{assigned_val} tasks)")
+        else:
+            reasons.append(f"○ Low task completion rate: {rate}% ({completed_val}/{assigned_val} tasks)")
+            missing_requirements.append(f"Low completion rate: {rate}%")
+
+    # 5. Project Experience (10%)
+    if completed_projects is not None and completed_projects >= 1:
+        project_experience_score = 100
+        reasons.append(f"✓ Completed {completed_projects} project lifecycle(s) on Nexora")
+    elif projects_joined is not None and projects_joined >= 1:
+        project_experience_score = 90
+        reasons.append(f"✓ Contributed to {projects_joined} project squad(s) on Nexora")
+    else:
+        # Cold start neutral baseline
+        project_experience_score = 100
+        reasons.append("○ Ready for first project collaboration")
+
+    # Weighted calculation
+    weighted = (
+        (skill_score * WEIGHT_V2_SKILL)
+        + (role_experience_score * WEIGHT_V2_ROLE)
+        + (avail_score * WEIGHT_V2_AVAILABILITY)
+        + (reliability_score * WEIGHT_V2_RELIABILITY)
+        + (project_experience_score * WEIGHT_V2_PROJECT)
+    )
+    final_score = max(0, min(100, int(round(weighted))))
+
+    # Evidence quality
+    has_skills_evidence = bool(normalize_collection(user_skills) and normalize_collection(required_skills))
+    has_role_evidence = bool(normalize_collection(user_roles) or (verified_roles and len(verified_roles) > 0))
+    has_avail_evidence = norm_avail in ("open", "looking_for_hackathon", "looking_for_project", "busy")
+    evidence_quality = calculate_evidence_quality(
+        has_skills_evidence, has_role_evidence, has_avail_evidence
+    )
+
+    return MatchScoreV2(
+        score=final_score,
+        total_score=final_score,
+        skill_score=skill_score,
+        role_score=role_experience_score,
+        role_experience_score=role_experience_score,
+        availability_score=avail_score,
+        reliability_score=reliability_score,
+        project_experience_score=project_experience_score,
+        matched_skills=matched_skills,
+        missing_skills=missing_skills,
+        missing_requirements=missing_requirements,
+        role_match=role_match,
+        availability_match=avail_match,
+        reasons=reasons,
+        evidence_quality=evidence_quality,
+        score_label=get_score_label(final_score),
+        version="v2",
     )

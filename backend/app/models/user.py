@@ -16,6 +16,8 @@ class PublicUserProfile(BaseModel):
     github_url: Optional[str] = None
     linkedin_url: Optional[str] = None
     availability: str = "open"
+    tasks_completed_count: Optional[int] = None
+    completed_projects_count: Optional[int] = None
     created_at: Optional[datetime] = None
 
 
@@ -33,6 +35,8 @@ class UserProfileRead(BaseModel):
     github_url: Optional[str] = None
     linkedin_url: Optional[str] = None
     availability: str = "open"
+    tasks_completed_count: Optional[int] = None
+    completed_projects_count: Optional[int] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

@@ -1037,7 +1037,7 @@ export default function ProjectDetailPage({
       >
         <div className="space-y-4">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Ranked by deterministic Match Score V1 (skills, role alignment, availability).
+            Ranked by deterministic Match Score V2 (skills, verified roles, availability, task reliability, project experience).
           </p>
 
           {loadingCandidates ? (

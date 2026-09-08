@@ -37,6 +37,8 @@ class TaskRead(BaseModel):
     assignee_id: Optional[str] = None
     assignee: Optional[PublicUserProfile] = None
     created_by: str
+    completed_by: Optional[str] = None
+    completed_at: Optional[str] = None
     milestone_id: Optional[str] = None
     milestone_title: Optional[str] = None
     due_date: Optional[str] = None

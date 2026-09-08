@@ -11,7 +11,8 @@ from app.core.database import get_database
 from app.core.identity import get_user_id
 from app.core.activity import record_activity
 from app.core.notifications import create_notification
-from app.services.matching import calculate_match_score
+from app.services.matching import calculate_match_score, calculate_match_score_v2
+from app.api.routes.matches import _fetch_user_collaboration_history
 
 router = APIRouter(tags=["applications"])
 
@@ -215,7 +216,8 @@ async def list_project_applications(id: str, authorization: str = Header(...)):
 
     results: List[ProjectApplicationRead] = []
     for a in apps:
-        applicant = _fetch_user_public(a["applicant_id"], database)
+        app_uid = a.get("applicant_id") or a.get("user_id") or ""
+        applicant = _fetch_user_public(app_uid, database) if app_uid else None
         role_name = None
         match_result = None
         if a.get("role_id"):
@@ -224,13 +226,19 @@ async def list_project_applications(id: str, authorization: str = Header(...)):
                 role_row = r_res.data[0]
                 role_name = role_row["role_name"]
                 if applicant:
-                    match_result = calculate_match_score(
+                    c_hist = _fetch_user_collaboration_history(applicant.id, database)
+                    match_result = calculate_match_score_v2(
                         user_skills=applicant.skills,
                         user_roles=applicant.roles,
                         user_availability=applicant.availability,
                         role_name=role_row["role_name"],
                         required_skills=role_row.get("required_skills") or [],
                         project_category=proj.get("category"),
+                        verified_roles=c_hist["verified_roles"],
+                        tasks_assigned=c_hist["tasks_assigned"],
+                        tasks_completed=c_hist["tasks_completed"],
+                        projects_joined=c_hist["projects_joined"],
+                        completed_projects=c_hist["completed_projects"],
                     )
 
         results.append(
@@ -240,7 +248,7 @@ async def list_project_applications(id: str, authorization: str = Header(...)):
                 project_title=proj["title"],
                 role_id=str(a["role_id"]) if a.get("role_id") else None,
                 role_name=role_name,
-                applicant_id=str(a["applicant_id"]),
+                applicant_id=app_uid,
                 applicant=applicant,
                 message=a.get("message"),
                 status=a.get("status", "pending"),
@@ -313,6 +321,19 @@ async def respond_to_application(
                 "role_id": role_id,
                 "member_role": "Member",
             }).execute()
+            try:
+                database.table("project_membership_history").insert({
+                    "id": str(uuid.uuid4()),
+                    "project_id": app_row["project_id"],
+                    "user_id": app_row["applicant_id"],
+                    "role_id": role_id,
+                    "role_name": role_name or "Squad Member",
+                    "joined_at": datetime.now(timezone.utc).isoformat(),
+                    "left_at": None,
+                    "status": "active",
+                }).execute()
+            except Exception:
+                pass
 
             try:
                 record_activity(
@@ -398,13 +419,19 @@ async def respond_to_application(
                 role_row = r_res.data[0]
                 role_name = role_row["role_name"]
         if role_row:
-            match_result = calculate_match_score(
+            c_hist = _fetch_user_collaboration_history(applicant.id, database)
+            match_result = calculate_match_score_v2(
                 user_skills=applicant.skills,
                 user_roles=applicant.roles,
                 user_availability=applicant.availability,
                 role_name=role_row["role_name"],
                 required_skills=role_row.get("required_skills") or [],
                 project_category=proj.get("category"),
+                verified_roles=c_hist["verified_roles"],
+                tasks_assigned=c_hist["tasks_assigned"],
+                tasks_completed=c_hist["tasks_completed"],
+                projects_joined=c_hist["projects_joined"],
+                completed_projects=c_hist["completed_projects"],
             )
 
     return ProjectApplicationRead(

@@ -96,46 +96,117 @@ export default function MatchScoreBadge({ match, showDetails = false }: MatchSco
           </div>
 
           {/* Component Bars */}
-          <div className="grid grid-cols-3 gap-2 text-[11px]">
-            <div className="p-2 rounded-xl bg-white dark:bg-[#16162a] border border-gray-100 dark:border-white/[0.04]">
-              <div className="flex justify-between text-gray-500 dark:text-gray-400 mb-1">
-                <span>Skills (60%)</span>
-                <span className="font-bold text-gray-900 dark:text-white">{match.skill_score}%</span>
+          {match.version === "v2" ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 text-[11px]">
+              <div className="p-2 rounded-xl bg-white dark:bg-[#16162a] border border-gray-100 dark:border-white/[0.04]">
+                <div className="flex justify-between text-gray-500 dark:text-gray-400 mb-1">
+                  <span>Skills (45%)</span>
+                  <span className="font-bold text-gray-900 dark:text-white">{match.skill_score}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-gray-100 dark:bg-white/[0.06] rounded-full overflow-hidden">
+                  <div className={`h-full ${theme.barColor}`} style={{ width: `${match.skill_score}%` }} />
+                </div>
               </div>
-              <div className="w-full h-1.5 bg-gray-100 dark:bg-white/[0.06] rounded-full overflow-hidden">
-                <div
-                  className={`h-full ${theme.barColor}`}
-                  style={{ width: `${match.skill_score}%` }}
-                />
-              </div>
-            </div>
 
-            <div className="p-2 rounded-xl bg-white dark:bg-[#16162a] border border-gray-100 dark:border-white/[0.04]">
-              <div className="flex justify-between text-gray-500 dark:text-gray-400 mb-1">
-                <span>Role (25%)</span>
-                <span className="font-bold text-gray-900 dark:text-white">{match.role_score}%</span>
+              <div className="p-2 rounded-xl bg-white dark:bg-[#16162a] border border-gray-100 dark:border-white/[0.04]">
+                <div className="flex justify-between text-gray-500 dark:text-gray-400 mb-1">
+                  <span>Role Exp (20%)</span>
+                  <span className="font-bold text-gray-900 dark:text-white">{match.role_experience_score ?? match.role_score}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-gray-100 dark:bg-white/[0.06] rounded-full overflow-hidden">
+                  <div className={`h-full ${theme.barColor}`} style={{ width: `${match.role_experience_score ?? match.role_score}%` }} />
+                </div>
               </div>
-              <div className="w-full h-1.5 bg-gray-100 dark:bg-white/[0.06] rounded-full overflow-hidden">
-                <div
-                  className={`h-full ${theme.barColor}`}
-                  style={{ width: `${match.role_score}%` }}
-                />
-              </div>
-            </div>
 
-            <div className="p-2 rounded-xl bg-white dark:bg-[#16162a] border border-gray-100 dark:border-white/[0.04]">
-              <div className="flex justify-between text-gray-500 dark:text-gray-400 mb-1">
-                <span>Availability (15%)</span>
-                <span className="font-bold text-gray-900 dark:text-white">{match.availability_score}%</span>
+              <div className="p-2 rounded-xl bg-white dark:bg-[#16162a] border border-gray-100 dark:border-white/[0.04]">
+                <div className="flex justify-between text-gray-500 dark:text-gray-400 mb-1">
+                  <span>Availability (15%)</span>
+                  <span className="font-bold text-gray-900 dark:text-white">{match.availability_score}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-gray-100 dark:bg-white/[0.06] rounded-full overflow-hidden">
+                  <div className={`h-full ${theme.barColor}`} style={{ width: `${match.availability_score}%` }} />
+                </div>
               </div>
-              <div className="w-full h-1.5 bg-gray-100 dark:bg-white/[0.06] rounded-full overflow-hidden">
-                <div
-                  className={`h-full ${theme.barColor}`}
-                  style={{ width: `${match.availability_score}%` }}
-                />
+
+              <div className="p-2 rounded-xl bg-white dark:bg-[#16162a] border border-gray-100 dark:border-white/[0.04]">
+                <div className="flex justify-between text-gray-500 dark:text-gray-400 mb-1">
+                  <span>Reliability (10%)</span>
+                  <span className="font-bold text-gray-900 dark:text-white">{match.reliability_score ?? 100}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-gray-100 dark:bg-white/[0.06] rounded-full overflow-hidden">
+                  <div className={`h-full ${theme.barColor}`} style={{ width: `${match.reliability_score ?? 100}%` }} />
+                </div>
+              </div>
+
+              <div className="p-2 rounded-xl bg-white dark:bg-[#16162a] border border-gray-100 dark:border-white/[0.04] col-span-2 sm:col-span-1">
+                <div className="flex justify-between text-gray-500 dark:text-gray-400 mb-1">
+                  <span>Projects (10%)</span>
+                  <span className="font-bold text-gray-900 dark:text-white">{match.project_experience_score ?? 100}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-gray-100 dark:bg-white/[0.06] rounded-full overflow-hidden">
+                  <div className={`h-full ${theme.barColor}`} style={{ width: `${match.project_experience_score ?? 100}%` }} />
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-2 text-[11px]">
+              <div className="p-2 rounded-xl bg-white dark:bg-[#16162a] border border-gray-100 dark:border-white/[0.04]">
+                <div className="flex justify-between text-gray-500 dark:text-gray-400 mb-1">
+                  <span>Skills (60%)</span>
+                  <span className="font-bold text-gray-900 dark:text-white">{match.skill_score}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-gray-100 dark:bg-white/[0.06] rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${theme.barColor}`}
+                    style={{ width: `${match.skill_score}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="p-2 rounded-xl bg-white dark:bg-[#16162a] border border-gray-100 dark:border-white/[0.04]">
+                <div className="flex justify-between text-gray-500 dark:text-gray-400 mb-1">
+                  <span>Role (25%)</span>
+                  <span className="font-bold text-gray-900 dark:text-white">{match.role_score}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-gray-100 dark:bg-white/[0.06] rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${theme.barColor}`}
+                    style={{ width: `${match.role_score}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="p-2 rounded-xl bg-white dark:bg-[#16162a] border border-gray-100 dark:border-white/[0.04]">
+                <div className="flex justify-between text-gray-500 dark:text-gray-400 mb-1">
+                  <span>Availability (15%)</span>
+                  <span className="font-bold text-gray-900 dark:text-white">{match.availability_score}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-gray-100 dark:bg-white/[0.06] rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${theme.barColor}`}
+                    style={{ width: `${match.availability_score}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Missing Requirements Alert */}
+          {match.missing_requirements && match.missing_requirements.length > 0 && (
+            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 space-y-1 text-[11px]">
+              <div className="flex items-center gap-1.5 font-bold">
+                <AlertCircle size={13} />
+                <span>Gaps to Address:</span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {match.missing_requirements.map((req, i) => (
+                  <span key={i} className="px-1.5 py-0.5 rounded bg-amber-500/20 text-[10px] font-medium">
+                    {req}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Matched & Missing Skills */}
           {(match.matched_skills.length > 0 || match.missing_skills.length > 0) && (

@@ -8,8 +8,10 @@ from app.models.match import (
     UserRoleMatchResponse,
     RoleCandidateMatch,
     UserRoleRecommendation,
+    MatchScoreResult,
+    MatchScoreV2,
 )
-from app.services.matching import calculate_match_score
+from app.services.matching import calculate_match_score, calculate_match_score_v2
 
 router = APIRouter(tags=["matches"])
 
@@ -61,6 +63,129 @@ def _row_to_project_list_item(p_row: dict, roles: List[ProjectRoleRead], members
         members_count=members_count,
         open_roles_count=open_roles,
     )
+
+
+def _fetch_user_collaboration_history(user_id: str, database) -> dict:
+    verified_roles = []
+    try:
+        h_res = database.table("project_membership_history").select("role_name").eq("user_id", user_id).execute()
+        for h in (h_res.data or []):
+            rn = h.get("role_name")
+            if rn and rn not in verified_roles:
+                verified_roles.append(rn)
+    except Exception:
+        pass
+
+    try:
+        m_res = database.table("project_members").select("role_name, member_role").eq("user_id", user_id).execute()
+        for m in (m_res.data or []):
+            rn = m.get("role_name") or ("Project Owner" if m.get("member_role") == "Owner" else None)
+            if rn and rn not in verified_roles:
+                verified_roles.append(rn)
+    except Exception:
+        pass
+
+    projects_joined = 0
+    completed_projects = 0
+    try:
+        projs_res = database.table("projects").select("id, status").execute()
+        p_status_map = {p["id"]: p.get("status") for p in (projs_res.data or [])}
+        m_projs = database.table("project_members").select("project_id").eq("user_id", user_id).execute()
+        p_ids = set(m.get("project_id") for m in (m_projs.data or []))
+        projects_joined = len(p_ids)
+        completed_projects = sum(1 for pid in p_ids if p_status_map.get(pid) == "completed")
+    except Exception:
+        pass
+
+    tasks_assigned = 0
+    tasks_completed = 0
+    try:
+        tasks_res = database.table("tasks").select("id, assignee_id, completed_by, status").execute()
+        for t in (tasks_res.data or []):
+            assignee = t.get("assignee_id")
+            completer = t.get("completed_by")
+            status = t.get("status")
+            if assignee == user_id:
+                tasks_assigned += 1
+            if status == "done" and (completer == user_id or (completer is None and assignee == user_id)):
+                tasks_completed += 1
+    except Exception:
+        pass
+
+    return {
+        "verified_roles": verified_roles,
+        "projects_joined": projects_joined,
+        "completed_projects": completed_projects,
+        "tasks_assigned": tasks_assigned,
+        "tasks_completed": tasks_completed,
+    }
+
+
+def _fetch_all_collaboration_histories(database) -> dict:
+    histories: dict = {}
+    try:
+        h_res = database.table("project_membership_history").select("user_id, role_name").execute()
+        for h in (h_res.data or []):
+            uid = h.get("user_id")
+            rn = h.get("role_name")
+            if uid:
+                histories.setdefault(uid, {"verified_roles": [], "project_ids": set(), "tasks_assigned": 0, "tasks_completed": 0})
+                if rn and rn not in histories[uid]["verified_roles"]:
+                    histories[uid]["verified_roles"].append(rn)
+    except Exception:
+        pass
+
+    p_status_map = {}
+    try:
+        projs_res = database.table("projects").select("id, status").execute()
+        p_status_map = {p["id"]: p.get("status") for p in (projs_res.data or [])}
+    except Exception:
+        pass
+
+    try:
+        m_res = database.table("project_members").select("user_id, project_id, role_name, member_role").execute()
+        for m in (m_res.data or []):
+            uid = m.get("user_id")
+            if uid:
+                histories.setdefault(uid, {"verified_roles": [], "project_ids": set(), "tasks_assigned": 0, "tasks_completed": 0})
+                pid = m.get("project_id")
+                if pid:
+                    histories[uid]["project_ids"].add(pid)
+                rn = m.get("role_name") or ("Project Owner" if m.get("member_role") == "Owner" else None)
+                if rn and rn not in histories[uid]["verified_roles"]:
+                    histories[uid]["verified_roles"].append(rn)
+    except Exception:
+        pass
+
+    try:
+        tasks_res = database.table("tasks").select("id, assignee_id, completed_by, status").execute()
+        for t in (tasks_res.data or []):
+            assignee = t.get("assignee_id")
+            completer = t.get("completed_by")
+            status = t.get("status")
+            if assignee:
+                histories.setdefault(assignee, {"verified_roles": [], "project_ids": set(), "tasks_assigned": 0, "tasks_completed": 0})
+                histories[assignee]["tasks_assigned"] += 1
+            if status == "done":
+                target_uid = completer or assignee
+                if target_uid:
+                    histories.setdefault(target_uid, {"verified_roles": [], "project_ids": set(), "tasks_assigned": 0, "tasks_completed": 0})
+                    histories[target_uid]["tasks_completed"] += 1
+    except Exception:
+        pass
+
+    result = {}
+    for uid, data in histories.items():
+        p_ids = data["project_ids"]
+        completed_p = sum(1 for pid in p_ids if p_status_map.get(pid) == "completed")
+        result[uid] = {
+            "verified_roles": data["verified_roles"],
+            "projects_joined": len(p_ids),
+            "completed_projects": completed_p,
+            "tasks_assigned": data["tasks_assigned"],
+            "tasks_completed": data["tasks_completed"],
+        }
+    return result
 
 
 # ── 1. Calculate Single Match: User <-> Project Role ─────────────────────────
@@ -115,14 +240,20 @@ async def get_user_role_match(
 
     proj_item = _row_to_project_list_item(proj_row, roles_list, members_count)
 
-    # Calculate deterministic Match Score V1
-    match_result = calculate_match_score(
+    # Fetch user collaboration history & calculate deterministic Match Score V2
+    c_hist = _fetch_user_collaboration_history(user_id, database)
+    match_result = calculate_match_score_v2(
         user_skills=user_profile.skills,
         user_roles=user_profile.roles,
         user_availability=user_profile.availability,
         role_name=role_model.role_name,
         required_skills=role_model.required_skills,
         project_category=proj_row.get("category"),
+        verified_roles=c_hist["verified_roles"],
+        tasks_assigned=c_hist["tasks_assigned"],
+        tasks_completed=c_hist["tasks_completed"],
+        projects_joined=c_hist["projects_joined"],
+        completed_projects=c_hist["completed_projects"],
     )
 
     return UserRoleMatchResponse(
@@ -177,13 +308,14 @@ async def get_recommended_builders_for_role(
     for m in (m_res.data or []):
         excluded_user_ids.add(str(m["user_id"]))
 
-    # 4. Fetch Candidate Users
+    # 4. Fetch Candidate Users and pre-fetch collaboration histories
     u_res = (
         database.table("users")
         .select("id, display_name, avatar_url, username, headline, bio, skills, roles, interests, github_url, linkedin_url, availability, created_at")
         .execute()
     )
     user_rows = u_res.data or []
+    all_c_histories = _fetch_all_collaboration_histories(database)
 
     candidates: List[RoleCandidateMatch] = []
     for u_row in user_rows:
@@ -192,13 +324,19 @@ async def get_recommended_builders_for_role(
             continue
 
         public_user = _row_to_public_profile(u_row)
-        match_result = calculate_match_score(
+        c_hist = all_c_histories.get(uid, {"verified_roles": [], "projects_joined": 0, "completed_projects": 0, "tasks_assigned": 0, "tasks_completed": 0})
+        match_result = calculate_match_score_v2(
             user_skills=public_user.skills,
             user_roles=public_user.roles,
             user_availability=public_user.availability,
             role_name=role_model.role_name,
             required_skills=role_model.required_skills,
             project_category=proj_row.get("category"),
+            verified_roles=c_hist["verified_roles"],
+            tasks_assigned=c_hist["tasks_assigned"],
+            tasks_completed=c_hist["tasks_completed"],
+            projects_joined=c_hist["projects_joined"],
+            completed_projects=c_hist["completed_projects"],
         )
 
         if match_result.score >= min_score:
@@ -277,6 +415,7 @@ async def get_recommended_roles_for_me(
             proj_roles_map.setdefault(pid, []).append(_row_to_project_role(r))
 
     recommendations: List[UserRoleRecommendation] = []
+    caller_c_hist = _fetch_user_collaboration_history(caller_id, database)
 
     for r_row in all_roles:
         pid = str(r_row["project_id"])
@@ -293,13 +432,18 @@ async def get_recommended_roles_for_me(
         roles_for_proj = proj_roles_map.get(pid, [])
         proj_item = _row_to_project_list_item(proj_row, roles_for_proj, members_count=1)
 
-        match_result = calculate_match_score(
+        match_result = calculate_match_score_v2(
             user_skills=current_user.skills,
             user_roles=current_user.roles,
             user_availability=current_user.availability,
             role_name=role_model.role_name,
             required_skills=role_model.required_skills,
             project_category=proj_row.get("category"),
+            verified_roles=caller_c_hist["verified_roles"],
+            tasks_assigned=caller_c_hist["tasks_assigned"],
+            tasks_completed=caller_c_hist["tasks_completed"],
+            projects_joined=caller_c_hist["projects_joined"],
+            completed_projects=caller_c_hist["completed_projects"],
         )
 
         if match_result.score >= min_score:

@@ -107,6 +107,11 @@ def _build_task_read(t_row: dict, database) -> TaskRead:
         if ms_res.data and len(ms_res.data) > 0:
             milestone_title = ms_res.data[0].get("title")
 
+    # Legacy fallback for completed_by if task is done but completed_by is missing
+    completed_by = t_row.get("completed_by")
+    if completed_by is None and t_row.get("status") == "done":
+        completed_by = t_row.get("assignee_id")
+
     return TaskRead(
         id=str(t_row["id"]),
         project_id=str(t_row["project_id"]),
@@ -117,6 +122,8 @@ def _build_task_read(t_row: dict, database) -> TaskRead:
         assignee_id=t_row.get("assignee_id"),
         assignee=assignee,
         created_by=str(t_row.get("created_by", "")),
+        completed_by=completed_by,
+        completed_at=t_row.get("completed_at"),
         milestone_id=t_row.get("milestone_id"),
         milestone_title=milestone_title,
         due_date=t_row.get("due_date"),
@@ -334,6 +341,7 @@ async def create_project_task(
 
     task_id = str(uuid.uuid4())
     now_iso = datetime.now(timezone.utc).isoformat()
+    is_done = (payload.status == "done")
     task_row = {
         "id": task_id,
         "project_id": id,
@@ -343,6 +351,8 @@ async def create_project_task(
         "priority": payload.priority or "medium",
         "assignee_id": payload.assignee_id,
         "created_by": user_id,
+        "completed_by": (payload.assignee_id or user_id) if is_done else None,
+        "completed_at": now_iso if is_done else None,
         "milestone_id": payload.milestone_id,
         "due_date": payload.due_date,
         "created_at": now_iso,
@@ -449,7 +459,8 @@ async def update_project_task(
             if not ms_res.data or ms_res.data[0].get("project_id") != id:
                 raise HTTPException(status_code=400, detail="Milestone does not belong to this project")
 
-    updates = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    now_iso = datetime.now(timezone.utc).isoformat()
+    updates = {"updated_at": now_iso}
     for field in payload.model_fields_set:
         val = getattr(payload, field)
         if field == "title" and val is not None:
@@ -460,6 +471,17 @@ async def update_project_task(
             updates[field] = val
         elif field in ("assignee_id", "milestone_id"):
             updates[field] = val if val else None
+
+    # Handle completion attribution
+    old_status = existing_task.get("status")
+    new_status = updates.get("status")
+    if new_status and new_status != old_status:
+        if new_status == "done":
+            updates["completed_by"] = existing_task.get("assignee_id") or user_id
+            updates["completed_at"] = now_iso
+        elif old_status == "done":
+            updates["completed_by"] = None
+            updates["completed_at"] = None
 
     try:
         database.table("tasks").update(updates).eq("id", task_id).execute()

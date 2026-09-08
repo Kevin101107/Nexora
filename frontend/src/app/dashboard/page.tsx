@@ -74,7 +74,7 @@ export default function DashboardPage() {
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20 mb-3">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Match Score V1 Active</span>
+              <span>Match Score V2 Active</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight">
               Welcome back, {displayName} 👋
@@ -214,7 +214,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── Recommended Opportunities (Match Score V1) ─────────── */}
+      {/* ── Recommended Opportunities (Match Score V2) ─────────── */}
       {recommendedRoles.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">

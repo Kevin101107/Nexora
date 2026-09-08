@@ -1,5 +1,6 @@
 from app.services.matching import (
     calculate_match_score,
+    calculate_match_score_v2,
     calculate_skill_match,
     calculate_role_match,
     calculate_availability_match,
@@ -9,13 +10,20 @@ from app.services.matching import (
     canonicalize_role,
     get_score_label,
     MatchScoreResult,
+    MatchScoreV2,
     WEIGHT_SKILL,
     WEIGHT_ROLE,
     WEIGHT_AVAILABILITY,
+    WEIGHT_V2_SKILL,
+    WEIGHT_V2_ROLE,
+    WEIGHT_V2_AVAILABILITY,
+    WEIGHT_V2_RELIABILITY,
+    WEIGHT_V2_PROJECT,
 )
 
 __all__ = [
     "calculate_match_score",
+    "calculate_match_score_v2",
     "calculate_skill_match",
     "calculate_role_match",
     "calculate_availability_match",
@@ -25,7 +33,13 @@ __all__ = [
     "canonicalize_role",
     "get_score_label",
     "MatchScoreResult",
+    "MatchScoreV2",
     "WEIGHT_SKILL",
     "WEIGHT_ROLE",
     "WEIGHT_AVAILABILITY",
+    "WEIGHT_V2_SKILL",
+    "WEIGHT_V2_ROLE",
+    "WEIGHT_V2_AVAILABILITY",
+    "WEIGHT_V2_RELIABILITY",
+    "WEIGHT_V2_PROJECT",
 ]

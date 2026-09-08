@@ -11,12 +11,88 @@ export interface PublicUserProfile {
   github_url?: string | null;
   linkedin_url?: string | null;
   availability: string;
+  tasks_completed_count?: number | null;
+  completed_projects_count?: number | null;
   created_at?: string | null;
 }
 
 export interface UserProfileRead extends PublicUserProfile {
   email: string;
   updated_at?: string | null;
+}
+
+export interface ContributionSummary {
+  projects_joined: number;
+  active_projects: number;
+  completed_projects: number;
+  tasks_assigned: number;
+  tasks_completed: number;
+  tasks_in_progress: number;
+  task_completion_rate: number;
+  milestones_contributed: number;
+  roles_held: number;
+  current_projects: number;
+}
+
+export interface ProjectContribution {
+  project_id: string;
+  project_title: string;
+  project_status: string;
+  role_name?: string | null;
+  joined_at?: string | null;
+  left_at?: string | null;
+  tasks_assigned: number;
+  tasks_completed: number;
+  tasks_in_progress: number;
+  completion_rate: number;
+  milestones_contributed: number;
+  last_activity_at?: string | null;
+}
+
+export interface RoleContribution {
+  project_id: string;
+  project_title: string;
+  role_id?: string | null;
+  role_name: string;
+  joined_at?: string | null;
+  left_at?: string | null;
+  membership_status: string;
+}
+
+export interface RecentContribution {
+  id: string;
+  project_id: string;
+  project_title: string;
+  action_type: string;
+  summary: string;
+  created_at: string;
+}
+
+export interface CollaborationSignals {
+  task_completion_rate: number;
+  completed_projects: number;
+  contribution_consistency: boolean;
+  active_project_count: number;
+  roles_contributed: number;
+  total_completed_tasks: number;
+}
+
+export interface ContributionBadge {
+  id: string;
+  name: string;
+  description: string;
+  criteria: string;
+  awarded: boolean;
+}
+
+export interface ContributionProfileResponse {
+  user: PublicUserProfile;
+  summary: ContributionSummary;
+  projects: ProjectContribution[];
+  roles: RoleContribution[];
+  recent_activity: RecentContribution[];
+  signals: CollaborationSignals;
+  badges: ContributionBadge[];
 }
 
 export interface ProjectRole {
@@ -137,6 +213,12 @@ export interface MatchScoreResult {
   reasons: string[];
   evidence_quality: "high" | "medium" | "low";
   score_label: string;
+  total_score?: number;
+  role_experience_score?: number;
+  reliability_score?: number;
+  project_experience_score?: number;
+  missing_requirements?: string[];
+  version?: "v1" | "v2";
 }
 
 export interface UserRoleMatchResponse {

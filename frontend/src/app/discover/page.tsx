@@ -30,6 +30,7 @@ import {
   Clock,
   Briefcase,
   UserPlus,
+  Award,
 } from "lucide-react";
 
 const ROLES = [
@@ -250,7 +251,7 @@ export default function DiscoverPage() {
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-            Find compatible project roles and student builders with explainable Match Score V1.
+            Find compatible project roles and student builders with explainable Match Score V2.
           </p>
         </div>
 
@@ -300,10 +301,10 @@ export default function DiscoverPage() {
             <div>
               <h2 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
                 <Sparkles size={15} className="text-primary" />
-                <span>Deterministic Match Score V1</span>
+                <span>Deterministic Match Score V2</span>
               </h2>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                Roles are ranked based on skill overlap (60%), role alignment (25%), and availability compatibility (15%).
+                Roles are ranked based on skill overlap (45%), role experience (20%), availability (15%), task reliability (10%), and project experience (10%).
               </p>
             </div>
             <Link
@@ -528,6 +529,22 @@ export default function DiscoverPage() {
                       <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-medium mb-3 line-clamp-2">
                         {builder.headline || "Student Builder on Nexora"}
                       </p>
+
+                      {/* Contribution Signals */}
+                      {((builder.tasks_completed_count && builder.tasks_completed_count > 0) || (builder.completed_projects_count && builder.completed_projects_count > 0)) && (
+                        <div className="flex flex-wrap gap-1.5 mb-2.5">
+                          {builder.tasks_completed_count && builder.tasks_completed_count > 0 && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 flex items-center gap-1">
+                              <CheckCircle2 size={11} /> {builder.tasks_completed_count} {builder.tasks_completed_count === 1 ? "task" : "tasks"} completed
+                            </span>
+                          )}
+                          {builder.completed_projects_count && builder.completed_projects_count > 0 && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/20 flex items-center gap-1">
+                              <Award size={11} /> {builder.completed_projects_count} {builder.completed_projects_count === 1 ? "project" : "projects"} completed
+                            </span>
+                          )}
+                        </div>
+                      )}
 
                       {/* Roles */}
                       {builder.roles && builder.roles.length > 0 && (

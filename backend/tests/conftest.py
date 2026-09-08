@@ -178,6 +178,7 @@ def mock_db():
         "projects": [],
         "project_roles": [],
         "project_members": [],
+        "project_membership_history": [],
         "project_applications": [],
         "teammate_requests": [],
         "tasks": [],
