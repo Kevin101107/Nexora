@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import { createApiClient } from "@/lib/api";
-import { UserProfileRead, ProjectListItem, TeammateRequest, UserTeam } from "@/lib/types";
+import { UserProfileRead, ProjectListItem, TeammateRequest, UserTeam, UserRoleRecommendation } from "@/lib/types";
+import MatchScoreBadge from "@/components/MatchScoreBadge";
 import {
   Users,
   FolderGit2,
@@ -24,6 +25,7 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [myTeams, setMyTeams] = useState<UserTeam[]>([]);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [recommendedRoles, setRecommendedRoles] = useState<UserRoleRecommendation[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,17 +41,19 @@ export default function DashboardPage() {
 
       const api = createApiClient(session.access_token);
       try {
-        const [prof, projs, teams, reqs, apps] = await Promise.all([
+        const [prof, projs, teams, reqs, apps, recs] = await Promise.all([
           api.get<UserProfileRead>("/users/me").catch(() => null),
           api.get<ProjectListItem[]>("/projects").catch(() => []),
           api.get<UserTeam[]>("/teams/me").catch(() => []),
           api.get<TeammateRequest[]>("/requests?direction=received").catch(() => []),
           api.get<any[]>("/applications/me").catch(() => []),
+          api.get<UserRoleRecommendation[]>("/matches/me/roles?limit=4").catch(() => []),
         ]);
 
         if (prof) setProfile(prof);
         if (projs) setProjects(projs);
         if (teams) setMyTeams(teams);
+        if (recs) setRecommendedRoles(recs);
 
         const pendingReqs = (reqs || []).filter((r) => r.status === "pending").length;
         setPendingRequestsCount(pendingReqs);
@@ -72,7 +76,7 @@ export default function DashboardPage() {
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20 mb-3">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Phase 2 Collaboration Core</span>
+              <span>Match Score V1 Active</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight">
               Welcome back, {displayName} 👋
@@ -203,6 +207,99 @@ export default function DashboardPage() {
                     className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
                   >
                     <span>Open squad room</span>
+                    <ArrowRight size={13} />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Recommended Opportunities (Match Score V1) ─────────── */}
+      {recommendedRoles.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                  Recommended Opportunities
+                </h2>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
+                  <Sparkles size={10} /> Deterministic Fit
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Open project roles matched to your skills, availability, and target roles
+              </p>
+            </div>
+            <Link
+              href="/discover?tab=recommended"
+              className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+            >
+              <span>View all</span>
+              <ChevronRight size={14} />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {recommendedRoles.slice(0, 4).map((rec) => (
+              <div
+                key={rec.role.id}
+                className="card !p-5 space-y-3 hover:border-primary/30 transition-all flex flex-col justify-between"
+              >
+                <div className="space-y-2.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                        {rec.project.category.replace("_", " ")}
+                      </span>
+                      <h3 className="font-bold text-base text-gray-900 dark:text-white">
+                        {rec.role.role_name}
+                      </h3>
+                      <Link
+                        href={`/projects/${rec.project.id}`}
+                        className="text-xs font-medium text-primary hover:underline"
+                      >
+                        {rec.project.title}
+                      </Link>
+                    </div>
+                  </div>
+
+                  <MatchScoreBadge match={rec.match} />
+
+                  {rec.role.required_skills && rec.role.required_skills.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {rec.role.required_skills.map((skill) => {
+                        const isMatched = rec.match.matched_skills.some(
+                          (ms) => ms.toLowerCase() === skill.toLowerCase()
+                        );
+                        return (
+                          <span
+                            key={skill}
+                            className={`text-[10px] px-2 py-0.5 rounded-md font-medium ${
+                              isMatched
+                                ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20"
+                                : "bg-gray-100 dark:bg-white/[0.05] text-gray-600 dark:text-gray-400"
+                            }`}
+                          >
+                            {skill}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-3 border-t border-gray-100 dark:border-white/[0.06] flex items-center justify-between">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Squad: {rec.project.members_count} members
+                  </span>
+                  <Link
+                    href={`/projects/${rec.project.id}`}
+                    className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+                  >
+                    <span>View Role & Apply</span>
                     <ArrowRight size={13} />
                   </Link>
                 </div>

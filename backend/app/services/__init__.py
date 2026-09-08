@@ -1,0 +1,31 @@
+from app.services.matching import (
+    calculate_match_score,
+    calculate_skill_match,
+    calculate_role_match,
+    calculate_availability_match,
+    calculate_evidence_quality,
+    normalize_value,
+    normalize_collection,
+    canonicalize_role,
+    get_score_label,
+    MatchScoreResult,
+    WEIGHT_SKILL,
+    WEIGHT_ROLE,
+    WEIGHT_AVAILABILITY,
+)
+
+__all__ = [
+    "calculate_match_score",
+    "calculate_skill_match",
+    "calculate_role_match",
+    "calculate_availability_match",
+    "calculate_evidence_quality",
+    "normalize_value",
+    "normalize_collection",
+    "canonicalize_role",
+    "get_score_label",
+    "MatchScoreResult",
+    "WEIGHT_SKILL",
+    "WEIGHT_ROLE",
+    "WEIGHT_AVAILABILITY",
+]

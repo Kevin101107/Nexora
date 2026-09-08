@@ -215,6 +215,7 @@ def client(mock_db, monkeypatch):
         "app.api.routes.applications",
         "app.api.routes.requests",
         "app.api.routes.teams",
+        "app.api.routes.matches",
     ]
 
     for mod in modules_to_patch:

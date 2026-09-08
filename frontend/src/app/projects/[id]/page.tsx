@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { createApiClient } from "@/lib/api";
 import { useToast } from "@/components/Toast";
-import { Project, ProjectRole, ProjectApplication } from "@/lib/types";
+import { Project, ProjectRole, ProjectApplication, RoleCandidateMatch, PublicUserProfile } from "@/lib/types";
+import MatchScoreBadge from "@/components/MatchScoreBadge";
 import {
   FolderGit2,
   Users,
@@ -23,6 +24,7 @@ import {
   ExternalLink,
   ShieldCheck,
   Award,
+  Sparkles,
 } from "lucide-react";
 
 export default function ProjectDetailPage({
@@ -63,6 +65,58 @@ export default function ProjectDetailPage({
   const [editCategory, setEditCategory] = useState("");
   const [editStatus, setEditStatus] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+
+  // Find Matches state
+  const [matchingRole, setMatchingRole] = useState<ProjectRole | null>(null);
+  const [isFindMatchesModalOpen, setIsFindMatchesModalOpen] = useState(false);
+  const [roleCandidates, setRoleCandidates] = useState<RoleCandidateMatch[]>([]);
+  const [loadingCandidates, setLoadingCandidates] = useState(false);
+  const [invitedUserIds, setInvitedUserIds] = useState<string[]>([]);
+
+  async function handleOpenFindMatches(role: ProjectRole) {
+    setMatchingRole(role);
+    setIsFindMatchesModalOpen(true);
+    setLoadingCandidates(true);
+    try {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const api = createApiClient(session?.access_token || "");
+      const res = await api.get<RoleCandidateMatch[]>(
+        `/projects/${projectId}/roles/${role.id}/matches?limit=20`
+      );
+      setRoleCandidates(res || []);
+    } catch (err: any) {
+      toast("Failed to load candidate matches", "error");
+      setRoleCandidates([]);
+    } finally {
+      setLoadingCandidates(false);
+    }
+  }
+
+  async function handleInviteCandidate(user: PublicUserProfile, role: ProjectRole) {
+    try {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        toast("Please log in to invite candidates", "error");
+        return;
+      }
+      const api = createApiClient(session.access_token);
+      await api.post("/requests", {
+        receiver_id: user.id,
+        project_id: projectId,
+        message: `Hi ${user.display_name || user.username}! We saw your profile and would love to invite you to join our squad as a ${role.role_name} on "${project?.title}".`,
+      });
+      setInvitedUserIds((prev) => [...prev, user.id]);
+      toast(`Invitation sent to ${user.display_name || user.username}!`);
+    } catch (err: any) {
+      toast(err?.message || "Failed to send invitation", "error");
+    }
+  }
 
   const loadProject = useCallback(async () => {
     const supabase = createClient();
@@ -521,31 +575,44 @@ export default function ProjectDetailPage({
                     )}
                   </div>
 
-                  {!isOwner && !isMember && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedRole(role);
-                        setIsApplyModalOpen(true);
-                      }}
-                      disabled={isFilled || isApplied}
-                      className={`btn-primary text-xs !py-1.5 !px-3.5 self-start sm:self-center shrink-0 ${
-                        isApplied ? "!bg-emerald-600 !opacity-100 cursor-default" : ""
-                      }`}
-                    >
-                      {isApplied ? (
-                        <>
-                          <CheckCircle2 size={13} />
-                          <span>Applied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Send size={13} />
-                          <span>Apply</span>
-                        </>
-                      )}
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                    {isOwner && !isFilled && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenFindMatches(role)}
+                        className="btn-outline text-xs !py-1.5 !px-3 flex items-center gap-1.5 text-primary border-primary/30 hover:bg-primary/5"
+                      >
+                        <Sparkles size={13} className="text-primary" />
+                        <span>Find Matches</span>
+                      </button>
+                    )}
+
+                    {!isOwner && !isMember && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedRole(role);
+                          setIsApplyModalOpen(true);
+                        }}
+                        disabled={isFilled || isApplied}
+                        className={`btn-primary text-xs !py-1.5 !px-3.5 flex items-center gap-1.5 ${
+                          isApplied ? "!bg-emerald-600 !opacity-100 cursor-default" : ""
+                        }`}
+                      >
+                        {isApplied ? (
+                          <>
+                            <CheckCircle2 size={13} />
+                            <span>Applied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Send size={13} />
+                            <span>Apply</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -887,6 +954,130 @@ export default function ProjectDetailPage({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Find Matches Modal */}
+      {isFindMatchesModalOpen && matchingRole && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="card !p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-white/[0.06]">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Sparkles size={16} className="text-primary" />
+                  <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                    Candidate Matches for {matchingRole.role_name}
+                  </h3>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Ranked by deterministic Match Score V1 (skills, role alignment, availability).
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsFindMatchesModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {loadingCandidates ? (
+              <div className="py-12 flex flex-col items-center justify-center gap-2 text-xs text-gray-400">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span>Calculating candidate scores...</span>
+              </div>
+            ) : roleCandidates.length === 0 ? (
+              <div className="py-12 text-center text-xs text-gray-400 space-y-1">
+                <p className="font-semibold text-gray-600 dark:text-gray-300">No candidates available</p>
+                <p>All candidates are already members of this project or no public builders match.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {roleCandidates.map((candidate, idx) => {
+                  const candidateName =
+                    candidate.user.display_name || candidate.user.username || "Builder";
+                  const initial = candidateName.charAt(0).toUpperCase();
+                  const isInvited = invitedUserIds.includes(candidate.user.id);
+
+                  return (
+                    <div
+                      key={candidate.user.id}
+                      className="p-4 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04] space-y-3"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-black text-gray-400 w-4">
+                            #{idx + 1}
+                          </span>
+                          <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary font-bold flex items-center justify-center text-sm shrink-0">
+                            {initial}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                                {candidateName}
+                              </h4>
+                              {candidate.user.username && (
+                                <Link
+                                  href={`/profile/${candidate.user.username}`}
+                                  target="_blank"
+                                  className="text-[11px] text-primary hover:underline flex items-center gap-0.5"
+                                >
+                                  @{candidate.user.username}
+                                  <ExternalLink size={10} />
+                                </Link>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
+                              {candidate.user.headline || "Student Builder"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleInviteCandidate(candidate.user, matchingRole)}
+                            disabled={isInvited}
+                            className={`btn-primary !py-1.5 !px-3.5 text-xs flex items-center gap-1.5 ${
+                              isInvited ? "!bg-emerald-600 !opacity-100 cursor-default" : ""
+                            }`}
+                          >
+                            {isInvited ? (
+                              <>
+                                <CheckCircle2 size={13} />
+                                <span>Invited</span>
+                              </>
+                            ) : (
+                              <>
+                                <Send size={13} />
+                                <span>Invite to Squad</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Explainable Match Badge */}
+                      <MatchScoreBadge match={candidate.match} showDetails={true} />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2 border-t border-gray-100 dark:border-white/[0.06]">
+              <button
+                type="button"
+                onClick={() => setIsFindMatchesModalOpen(false)}
+                className="btn-outline text-xs !py-1.5 !px-4"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

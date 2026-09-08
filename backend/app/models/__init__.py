@@ -19,6 +19,12 @@ from app.models.request import (
     TeammateRequestDecision,
     TeammateRequestRead,
 )
+from app.models.match import (
+    MatchScoreResult,
+    UserRoleMatchResponse,
+    RoleCandidateMatch,
+    UserRoleRecommendation,
+)
 
 __all__ = [
     "PublicUserProfile",
@@ -39,4 +45,8 @@ __all__ = [
     "TeammateRequestCreate",
     "TeammateRequestDecision",
     "TeammateRequestRead",
+    "MatchScoreResult",
+    "UserRoleMatchResponse",
+    "RoleCandidateMatch",
+    "UserRoleRecommendation",
 ]
