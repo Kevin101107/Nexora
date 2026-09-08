@@ -6,7 +6,13 @@ import Link from "next/link";
 import { DEVELOPMENT_USER_ID } from "@/lib/development";
 import { createApiClient } from "@/lib/api";
 import { useToast } from "@/components/Toast";
-import { PublicUserProfile } from "@/lib/types";
+import {
+  PublicUserProfile,
+  ProjectListItem,
+  MatchScoreResult,
+  UserRoleMatchResponse,
+} from "@/lib/types";
+import MatchScoreBadge from "@/components/MatchScoreBadge";
 import {
   User,
   Loader2,
@@ -19,6 +25,8 @@ import {
   Clock,
   Sparkles,
   ShieldCheck,
+  FolderGit2,
+  Users,
 } from "lucide-react";
 
 export default function PublicProfilePage({
@@ -37,6 +45,14 @@ export default function PublicProfilePage({
   const [sendingRequest, setSendingRequest] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
 
+  // Projects owned by viewer
+  const [myOwnedProjects, setMyOwnedProjects] = useState<ProjectListItem[]>([]);
+  const [inviteType, setInviteType] = useState<"general" | "project">("general");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [selectedRoleId, setSelectedRoleId] = useState<string>("");
+  const [matchPreview, setMatchPreview] = useState<MatchScoreResult | null>(null);
+  const [loadingMatchPreview, setLoadingMatchPreview] = useState(false);
+
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -45,11 +61,15 @@ export default function PublicProfilePage({
         setCurrentUserId(DEVELOPMENT_USER_ID);
       }
 
-      // Public profile endpoint doesn't strictly require auth header, but we can send it
       const api = createApiClient(DEVELOPMENT_USER_ID);
       try {
-        const p = await api.get<PublicUserProfile>(`/users/${username}`);
+        const [p, projs] = await Promise.all([
+          api.get<PublicUserProfile>(`/users/${username}`),
+          api.get<ProjectListItem[]>("/projects").catch(() => []),
+        ]);
         setProfile(p);
+        const owned = (projs || []).filter((item) => item.owner_id === DEVELOPMENT_USER_ID);
+        setMyOwnedProjects(owned);
       } catch (err: any) {
         setProfile(null);
       } finally {
@@ -59,22 +79,97 @@ export default function PublicProfilePage({
     load();
   }, [username]);
 
+  async function fetchMatchPreview(userId: string, roleId: string) {
+    setLoadingMatchPreview(true);
+    try {
+      const api = createApiClient(DEVELOPMENT_USER_ID);
+      const res = await api.get<UserRoleMatchResponse>(`/matches/users/${userId}/roles/${roleId}`);
+      if (res && res.match) {
+        setMatchPreview(res.match);
+      } else {
+        setMatchPreview(null);
+      }
+    } catch {
+      setMatchPreview(null);
+    } finally {
+      setLoadingMatchPreview(false);
+    }
+  }
+
+  function handleOpenModal() {
+    setIsConnectModalOpen(true);
+    setConnectMessage("");
+    setMatchPreview(null);
+
+    const projectsWithRoles = myOwnedProjects.filter(
+      (p) => p.roles && p.roles.some((r) => r.status === "open" && r.filled_slots < r.slots)
+    );
+
+    if (projectsWithRoles.length > 0 && profile) {
+      setInviteType("project");
+      const firstProj = projectsWithRoles[0];
+      setSelectedProjectId(firstProj.id);
+      const openRoles = firstProj.roles.filter((r) => r.status === "open" && r.filled_slots < r.slots);
+      if (openRoles.length > 0) {
+        setSelectedRoleId(openRoles[0].id);
+        fetchMatchPreview(profile.id, openRoles[0].id);
+      } else {
+        setSelectedRoleId("");
+      }
+    } else {
+      setInviteType("general");
+      setSelectedProjectId("");
+      setSelectedRoleId("");
+    }
+  }
+
+  function handleProjectChange(projId: string) {
+    setSelectedProjectId(projId);
+    const proj = myOwnedProjects.find((p) => p.id === projId);
+    const openRoles = proj?.roles.filter((r) => r.status === "open" && r.filled_slots < r.slots) || [];
+    if (openRoles.length > 0 && profile) {
+      setSelectedRoleId(openRoles[0].id);
+      fetchMatchPreview(profile.id, openRoles[0].id);
+    } else {
+      setSelectedRoleId("");
+      setMatchPreview(null);
+    }
+  }
+
+  function handleRoleChange(roleId: string) {
+    setSelectedRoleId(roleId);
+    if (profile && roleId) {
+      fetchMatchPreview(profile.id, roleId);
+    } else {
+      setMatchPreview(null);
+    }
+  }
+
   async function handleSendRequest(e: React.FormEvent) {
     e.preventDefault();
     if (!profile) return;
     setSendingRequest(true);
     try {
-
       if (!session) {
         toast("Please log in to send teammate requests", "error");
         setSendingRequest(false);
         return;
       }
       const api = createApiClient(DEVELOPMENT_USER_ID);
-      await api.post("/requests", {
+
+      const payload: any = {
         receiver_id: profile.id,
         message: connectMessage.trim() || null,
-      });
+      };
+
+      if (inviteType === "project" && selectedProjectId) {
+        payload.project_id = selectedProjectId;
+        if (selectedRoleId) {
+          payload.role_id = selectedRoleId;
+        }
+      }
+
+      await api.post("/requests", payload);
       setRequestSent(true);
       setIsConnectModalOpen(false);
       toast(`Teammate request sent to ${profile.display_name || profile.username}!`);
@@ -168,7 +263,7 @@ export default function PublicProfilePage({
                 {!isOwnProfile && (
                   <button
                     type="button"
-                    onClick={() => setIsConnectModalOpen(true)}
+                    onClick={handleOpenModal}
                     disabled={requestSent}
                     className={`btn-primary text-xs !py-1.5 !px-3.5 flex items-center gap-1.5 ${
                       requestSent ? "!bg-emerald-600 !opacity-100 cursor-default" : ""
@@ -182,7 +277,7 @@ export default function PublicProfilePage({
                     ) : (
                       <>
                         <Send size={13} />
-                        <span>Connect</span>
+                        <span>Invite / Connect</span>
                       </>
                     )}
                   </button>
@@ -298,14 +393,19 @@ export default function PublicProfilePage({
         )}
       </div>
 
-      {/* Connect Modal */}
+      {/* Connect / Invite Modal */}
       {isConnectModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="card !p-6 max-w-md w-full space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-gray-900 dark:text-white">
-                Connect with {displayName}
-              </h3>
+          <div className="card !p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-white/[0.06]">
+              <div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                  Invite {displayName}
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Collaborate on your squad or connect for future projects.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsConnectModalOpen(false)}
@@ -315,23 +415,122 @@ export default function PublicProfilePage({
               </button>
             </div>
 
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Send a personalized teammate invitation for upcoming hackathons or side projects.
-            </p>
+            {/* Invite Type Switcher if user has projects */}
+            {myOwnedProjects.length > 0 && (
+              <div className="flex gap-2 p-1 bg-gray-100 dark:bg-white/[0.05] rounded-xl text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setInviteType("project")}
+                  className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                    inviteType === "project"
+                      ? "bg-white dark:bg-[#16162a] text-gray-900 dark:text-white shadow-xs"
+                      : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                  }`}
+                >
+                  <FolderGit2 size={13} className="text-primary" />
+                  <span>Invite to Project Squad</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInviteType("general");
+                    setMatchPreview(null);
+                  }}
+                  className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                    inviteType === "general"
+                      ? "bg-white dark:bg-[#16162a] text-gray-900 dark:text-white shadow-xs"
+                      : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                  }`}
+                >
+                  <Users size={13} />
+                  <span>Direct Connection</span>
+                </button>
+              </div>
+            )}
 
             <form onSubmit={handleSendRequest} className="space-y-4">
+              {inviteType === "project" && myOwnedProjects.length > 0 && (
+                <div className="space-y-3 p-3.5 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04]">
+                  <div>
+                    <label className="label">Select Project</label>
+                    <select
+                      value={selectedProjectId}
+                      onChange={(e) => handleProjectChange(e.target.value)}
+                      className="input-field text-xs"
+                    >
+                      {myOwnedProjects.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.title} ({p.open_roles_count} open {p.open_roles_count === 1 ? "role" : "roles"})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {(() => {
+                    const currentProj = myOwnedProjects.find((p) => p.id === selectedProjectId);
+                    const openRoles =
+                      currentProj?.roles.filter((r) => r.status === "open" && r.filled_slots < r.slots) || [];
+
+                    if (openRoles.length === 0) {
+                      return (
+                        <p className="text-xs text-amber-500">
+                          This project has no open roles. You can still send a general project invite.
+                        </p>
+                      );
+                    }
+
+                    return (
+                      <div>
+                        <label className="label">Target Role</label>
+                        <select
+                          value={selectedRoleId}
+                          onChange={(e) => handleRoleChange(e.target.value)}
+                          className="input-field text-xs"
+                        >
+                          <option value="">General Member (No specific role)</option>
+                          {openRoles.map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.role_name} ({r.slots - r.filled_slots} spots left)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Match Preview */}
+                  {loadingMatchPreview ? (
+                    <div className="py-2 flex items-center justify-center gap-2 text-xs text-gray-400">
+                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                      <span>Checking role match score...</span>
+                    </div>
+                  ) : matchPreview ? (
+                    <div className="space-y-1.5 pt-1">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                        Compatibility Preview:
+                      </p>
+                      <MatchScoreBadge match={matchPreview} showDetails={false} />
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
               <div>
-                <label className="label">Note (Optional)</label>
+                <label className="label">Personalized Note</label>
                 <textarea
                   value={connectMessage}
                   onChange={(e) => setConnectMessage(e.target.value)}
                   rows={3}
                   className="input-field text-xs"
-                  placeholder="e.g. Hey! I saw your Go & Docker skills and would love to build together for the upcoming hackathon..."
+                  placeholder={
+                    inviteType === "project"
+                      ? "Tell the builder why they'd be a great fit for your squad..."
+                      : "Introduce yourself and what kind of projects or hackathons you want to build together..."
+                  }
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-white/[0.06]">
                 <button
                   type="button"
                   onClick={() => setIsConnectModalOpen(false)}

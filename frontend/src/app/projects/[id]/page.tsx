@@ -103,12 +103,26 @@ export default function ProjectDetailPage({
       await api.post("/requests", {
         receiver_id: user.id,
         project_id: projectId,
+        role_id: role.id,
         message: `Hi ${user.display_name || user.username}! We saw your profile and would love to invite you to join our squad as a ${role.role_name} on "${project?.title}".`,
       });
       setInvitedUserIds((prev) => [...prev, user.id]);
       toast(`Invitation sent to ${user.display_name || user.username}!`);
     } catch (err: any) {
       toast(err?.message || "Failed to send invitation", "error");
+    }
+  }
+
+  async function handleRemoveMember(memberId: string, memberName: string) {
+    if (!confirm(`Are you sure you want to remove ${memberName} from this project?`)) return;
+    try {
+      if (!session) return;
+      const api = createApiClient(DEVELOPMENT_USER_ID);
+      await api.delete(`/projects/${projectId}/members/${memberId}`);
+      toast(`${memberName} removed from squad`);
+      loadProject();
+    } catch (err: any) {
+      toast(err?.message || "Failed to remove member", "error");
     }
   }
 
@@ -469,6 +483,16 @@ export default function ProjectDetailPage({
                     <ExternalLink size={13} />
                   </Link>
                 )}
+                {isOwner && member.member_role !== "Owner" && member.user_id !== currentUserId && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveMember(member.id, memberName)}
+                    className="text-gray-400 hover:text-red-500 transition-colors p-1 shrink-0"
+                    title={`Remove ${memberName} from squad`}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
               </div>
             );
           })}
@@ -661,6 +685,12 @@ export default function ProjectDetailPage({
                         {app.status}
                       </span>
                     </div>
+
+                    {app.match && (
+                      <div className="pt-1">
+                        <MatchScoreBadge match={app.match} showDetails={false} />
+                      </div>
+                    )}
 
                     {app.message && (
                       <div className="p-3 rounded-xl bg-white dark:bg-[#16162a] border border-gray-100 dark:border-white/[0.04] text-xs text-gray-700 dark:text-gray-300">

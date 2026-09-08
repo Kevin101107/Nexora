@@ -6,7 +6,13 @@ import Link from "next/link";
 import { DEVELOPMENT_USER_ID } from "@/lib/development";
 import { createApiClient } from "@/lib/api";
 import { useToast } from "@/components/Toast";
-import { PublicUserProfile, UserRoleRecommendation } from "@/lib/types";
+import {
+  PublicUserProfile,
+  UserRoleRecommendation,
+  ProjectListItem,
+  MatchScoreResult,
+  UserRoleMatchResponse,
+} from "@/lib/types";
 import MatchScoreBadge from "@/components/MatchScoreBadge";
 import {
   Search,
@@ -20,6 +26,8 @@ import {
   Sparkles,
   FolderGit2,
   Clock,
+  Briefcase,
+  UserPlus,
 } from "lucide-react";
 
 const ROLES = [
@@ -33,6 +41,14 @@ const ROLES = [
   "DevOps",
 ];
 
+const AVAILABILITY_FILTERS = [
+  { key: "all", label: "All Statuses" },
+  { key: "open", label: "Open" },
+  { key: "looking_for_hackathon", label: "Hackathon Squad" },
+  { key: "looking_for_project", label: "Side Project" },
+  { key: "busy", label: "Busy" },
+];
+
 export default function DiscoverPage() {
   const [activeTab, setActiveTab] = useState<"recommended" | "builders">("recommended");
   const [recommendations, setRecommendations] = useState<UserRoleRecommendation[]>([]);
@@ -40,10 +56,19 @@ export default function DiscoverPage() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [selectedRole, setSelectedRole] = useState("All Roles");
+  const [selectedAvailability, setSelectedAvailability] = useState("all");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Connect Modal state for builders
+  // My owned projects for inviting to roles
+  const [myOwnedProjects, setMyOwnedProjects] = useState<ProjectListItem[]>([]);
+
+  // Connect / Invite Modal state for builders
   const [targetBuilder, setTargetBuilder] = useState<PublicUserProfile | null>(null);
+  const [inviteType, setInviteType] = useState<"general" | "project">("general");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [selectedRoleId, setSelectedRoleId] = useState<string>("");
+  const [matchPreview, setMatchPreview] = useState<MatchScoreResult | null>(null);
+  const [loadingMatchPreview, setLoadingMatchPreview] = useState(false);
   const [connectMessage, setConnectMessage] = useState("");
   const [sendingRequest, setSendingRequest] = useState(false);
   const [requestedUserIds, setRequestedUserIds] = useState<string[]>([]);
@@ -61,8 +86,12 @@ export default function DiscoverPage() {
       try {
         // Fetch recommended roles for the development user
         if (session) {
-          const recs = await api.get<UserRoleRecommendation[]>("/matches/me/roles?limit=25").catch(() => []);
+          const [recs, projs] = await Promise.all([
+            api.get<UserRoleRecommendation[]>("/matches/me/roles?limit=25").catch(() => []),
+            api.get<ProjectListItem[]>("/projects").catch(() => []),
+          ]);
           setRecommendations(recs || []);
+          setMyOwnedProjects((projs || []).filter((p) => p.owner_id === DEVELOPMENT_USER_ID));
         } else {
           setActiveTab("builders");
         }
@@ -70,6 +99,7 @@ export default function DiscoverPage() {
         // Fetch builders with filters
         let path = "/users?";
         if (selectedRole !== "All Roles") path += `role=${encodeURIComponent(selectedRole)}&`;
+        if (selectedAvailability !== "all") path += `availability=${encodeURIComponent(selectedAvailability)}&`;
         if (query.trim()) path += `q=${encodeURIComponent(query.trim())}&`;
         const usersList = await api.get<PublicUserProfile[]>(path).catch(() => []);
         setBuilders(usersList || []);
@@ -85,29 +115,108 @@ export default function DiscoverPage() {
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [query, selectedRole]);
+  }, [query, selectedRole, selectedAvailability]);
+
+  async function fetchMatchPreview(userId: string, roleId: string) {
+    setLoadingMatchPreview(true);
+    try {
+      const api = createApiClient(DEVELOPMENT_USER_ID);
+      const res = await api.get<UserRoleMatchResponse>(`/matches/users/${userId}/roles/${roleId}`);
+      if (res && res.match) {
+        setMatchPreview(res.match);
+      } else {
+        setMatchPreview(null);
+      }
+    } catch {
+      setMatchPreview(null);
+    } finally {
+      setLoadingMatchPreview(false);
+    }
+  }
+
+  function handleOpenConnectModal(builder: PublicUserProfile) {
+    setTargetBuilder(builder);
+    setConnectMessage("");
+    setMatchPreview(null);
+
+    // If user owns projects with open roles, default to project invitation
+    const projectsWithRoles = myOwnedProjects.filter(
+      (p) => p.roles && p.roles.some((r) => r.status === "open" && r.filled_slots < r.slots)
+    );
+
+    if (projectsWithRoles.length > 0) {
+      setInviteType("project");
+      const firstProj = projectsWithRoles[0];
+      setSelectedProjectId(firstProj.id);
+      const openRoles = firstProj.roles.filter((r) => r.status === "open" && r.filled_slots < r.slots);
+      if (openRoles.length > 0) {
+        setSelectedRoleId(openRoles[0].id);
+        fetchMatchPreview(builder.id, openRoles[0].id);
+      } else {
+        setSelectedRoleId("");
+      }
+    } else {
+      setInviteType("general");
+      setSelectedProjectId("");
+      setSelectedRoleId("");
+    }
+  }
+
+  function handleProjectChange(projId: string) {
+    setSelectedProjectId(projId);
+    const proj = myOwnedProjects.find((p) => p.id === projId);
+    const openRoles = proj?.roles.filter((r) => r.status === "open" && r.filled_slots < r.slots) || [];
+    if (openRoles.length > 0 && targetBuilder) {
+      setSelectedRoleId(openRoles[0].id);
+      fetchMatchPreview(targetBuilder.id, openRoles[0].id);
+    } else {
+      setSelectedRoleId("");
+      setMatchPreview(null);
+    }
+  }
+
+  function handleRoleChange(roleId: string) {
+    setSelectedRoleId(roleId);
+    if (targetBuilder && roleId) {
+      fetchMatchPreview(targetBuilder.id, roleId);
+    } else {
+      setMatchPreview(null);
+    }
+  }
 
   async function handleConnectSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!targetBuilder) return;
     setSendingRequest(true);
     try {
-
       if (!session) {
         toast("Please log in to send teammate requests", "error");
         setSendingRequest(false);
         return;
       }
       const api = createApiClient(DEVELOPMENT_USER_ID);
-      await api.post("/requests", {
+
+      const payload: any = {
         receiver_id: targetBuilder.id,
         message: connectMessage.trim() || null,
-      });
+      };
+
+      if (inviteType === "project" && selectedProjectId) {
+        payload.project_id = selectedProjectId;
+        if (selectedRoleId) {
+          payload.role_id = selectedRoleId;
+        }
+      }
+
+      await api.post("/requests", payload);
 
       setRequestedUserIds((prev) => [...prev, targetBuilder.id]);
-      toast(`Connection request sent to ${targetBuilder.display_name || targetBuilder.username}!`);
+      toast(`Invitation sent to ${targetBuilder.display_name || targetBuilder.username}!`);
       setTargetBuilder(null);
       setConnectMessage("");
+      setMatchPreview(null);
+      setSelectedProjectId("");
+      setSelectedRoleId("");
     } catch (err: any) {
       toast(err?.message || "Failed to send request", "error");
     } finally {
@@ -314,6 +423,7 @@ export default function DiscoverPage() {
             </div>
 
             <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+              <span className="text-[11px] font-bold text-gray-400 shrink-0">Role:</span>
               {ROLES.map((r) => (
                 <button
                   key={r}
@@ -325,6 +435,23 @@ export default function DiscoverPage() {
                   }`}
                 >
                   {r}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs pt-1 border-t border-gray-100 dark:border-white/[0.04]">
+              <span className="text-[11px] font-bold text-gray-400 shrink-0">Availability:</span>
+              {AVAILABILITY_FILTERS.map((a) => (
+                <button
+                  key={a.key}
+                  onClick={() => setSelectedAvailability(a.key)}
+                  className={`px-3 py-1 rounded-xl font-semibold transition-colors shrink-0 ${
+                    selectedAvailability === a.key
+                      ? "bg-primary/90 text-white"
+                      : "bg-gray-100 dark:bg-white/[0.05] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/[0.1]"
+                  }`}
+                >
+                  {a.label}
                 </button>
               ))}
             </div>
@@ -431,7 +558,7 @@ export default function DiscoverPage() {
                       {!isSelf && (
                         <button
                           type="button"
-                          onClick={() => setTargetBuilder(builder)}
+                          onClick={() => handleOpenConnectModal(builder)}
                           disabled={isRequested}
                           className={`btn-primary !py-1.5 !px-3 text-xs flex items-center gap-1 ${
                             isRequested ? "!bg-emerald-600 !opacity-100 cursor-default" : ""
@@ -440,12 +567,12 @@ export default function DiscoverPage() {
                           {isRequested ? (
                             <>
                               <CheckCircle2 size={13} />
-                              <span>Requested</span>
+                              <span>Invited</span>
                             </>
                           ) : (
                             <>
-                              <Send size={13} />
-                              <span>Connect</span>
+                              <UserPlus size={13} />
+                              <span>Invite / Connect</span>
                             </>
                           )}
                         </button>
@@ -459,14 +586,19 @@ export default function DiscoverPage() {
         </div>
       )}
 
-      {/* Connect Modal for Builder */}
+      {/* Connect / Invite Modal for Builder */}
       {targetBuilder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="card !p-6 max-w-md w-full space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-gray-900 dark:text-white">
-                Invite {targetBuilder.display_name || targetBuilder.username} to Connect
-              </h3>
+          <div className="card !p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-white/[0.06]">
+              <div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                  Invite {targetBuilder.display_name || targetBuilder.username}
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Collaborate on your squad or connect for future projects.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setTargetBuilder(null)}
@@ -476,23 +608,122 @@ export default function DiscoverPage() {
               </button>
             </div>
 
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Send a personalized invitation to collaborate on projects or hackathons.
-            </p>
+            {/* Invite Type Switcher if user has projects */}
+            {myOwnedProjects.length > 0 && (
+              <div className="flex gap-2 p-1 bg-gray-100 dark:bg-white/[0.05] rounded-xl text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setInviteType("project")}
+                  className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                    inviteType === "project"
+                      ? "bg-white dark:bg-[#16162a] text-gray-900 dark:text-white shadow-xs"
+                      : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                  }`}
+                >
+                  <FolderGit2 size={13} className="text-primary" />
+                  <span>Invite to Project Squad</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInviteType("general");
+                    setMatchPreview(null);
+                  }}
+                  className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                    inviteType === "general"
+                      ? "bg-white dark:bg-[#16162a] text-gray-900 dark:text-white shadow-xs"
+                      : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                  }`}
+                >
+                  <Users size={13} />
+                  <span>Direct Connection</span>
+                </button>
+              </div>
+            )}
 
             <form onSubmit={handleConnectSubmit} className="space-y-4">
+              {inviteType === "project" && myOwnedProjects.length > 0 && (
+                <div className="space-y-3 p-3.5 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04]">
+                  <div>
+                    <label className="label">Select Project</label>
+                    <select
+                      value={selectedProjectId}
+                      onChange={(e) => handleProjectChange(e.target.value)}
+                      className="input-field text-xs"
+                    >
+                      {myOwnedProjects.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.title} ({p.open_roles_count} open {p.open_roles_count === 1 ? "role" : "roles"})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {(() => {
+                    const currentProj = myOwnedProjects.find((p) => p.id === selectedProjectId);
+                    const openRoles =
+                      currentProj?.roles.filter((r) => r.status === "open" && r.filled_slots < r.slots) || [];
+
+                    if (openRoles.length === 0) {
+                      return (
+                        <p className="text-xs text-amber-500">
+                          This project has no open roles. You can still send a general project invite.
+                        </p>
+                      );
+                    }
+
+                    return (
+                      <div>
+                        <label className="label">Target Role</label>
+                        <select
+                          value={selectedRoleId}
+                          onChange={(e) => handleRoleChange(e.target.value)}
+                          className="input-field text-xs"
+                        >
+                          <option value="">General Member (No specific role)</option>
+                          {openRoles.map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.role_name} ({r.slots - r.filled_slots} spots left)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Match Preview */}
+                  {loadingMatchPreview ? (
+                    <div className="py-2 flex items-center justify-center gap-2 text-xs text-gray-400">
+                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                      <span>Checking role match score...</span>
+                    </div>
+                  ) : matchPreview ? (
+                    <div className="space-y-1.5 pt-1">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                        Compatibility Preview:
+                      </p>
+                      <MatchScoreBadge match={matchPreview} showDetails={false} />
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
               <div>
-                <label className="label">Note (Optional)</label>
+                <label className="label">Personalized Note</label>
                 <textarea
                   value={connectMessage}
                   onChange={(e) => setConnectMessage(e.target.value)}
                   rows={3}
                   className="input-field text-xs"
-                  placeholder="e.g. Hi! Looking for a teammate for the upcoming hackathon. Saw your stack and would love to build together..."
+                  placeholder={
+                    inviteType === "project"
+                      ? "Tell the builder why they'd be a great fit for your squad..."
+                      : "Introduce yourself and what kind of projects or hackathons you want to build together..."
+                  }
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-white/[0.06]">
                 <button
                   type="button"
                   onClick={() => setTargetBuilder(null)}

@@ -36,7 +36,7 @@ SEED_DATA = {
  "project_roles": [
   {"id":"role-campus-backend","project_id":"project-campus","role_name":"Backend Engineer","description":"Build listing, messaging, and trust APIs.","required_skills":["FastAPI","Python","PostgreSQL"],"slots":1,"filled_slots":0,"status":"open","created_at":T},
   {"id":"role-campus-design","project_id":"project-campus","role_name":"UI/UX Designer","description":"Refine marketplace flows and the design system.","required_skills":["Figma","User Research","Design Systems"],"slots":1,"filled_slots":0,"status":"open","created_at":T},
-  {"id":"role-health-frontend","project_id":"project-health","role_name":"Frontend Engineer","description":"Create the accessible wellness dashboard.","required_skills":["React","Next.js","TypeScript","Tailwind CSS"],"slots":1,"filled_slots":0,"status":"open","created_at":T},
+  {"id":"role-health-frontend","project_id":"project-health","role_name":"Frontend Engineer","description":"Create the accessible wellness dashboard.","required_skills":["React","Next.js","TypeScript","Tailwind CSS"],"slots":2,"filled_slots":1,"status":"open","created_at":T},
   {"id":"role-health-design","project_id":"project-health","role_name":"UI/UX Designer","description":"Design supportive check-in journeys.","required_skills":["Figma","User Research","Prototyping"],"slots":1,"filled_slots":0,"status":"open","created_at":T},
   {"id":"role-climate-mobile","project_id":"project-climate","role_name":"Mobile Developer","description":"Own the cross-platform commute experience.","required_skills":["React Native","TypeScript","Figma"],"slots":1,"filled_slots":0,"status":"open","created_at":T},
   {"id":"role-climate-fullstack","project_id":"project-climate","role_name":"Full-Stack Engineer","description":"Build route comparison and saved trips.","required_skills":["React","TypeScript","Python","PostgreSQL"],"slots":1,"filled_slots":0,"status":"open","created_at":T},
@@ -55,11 +55,15 @@ SEED_DATA = {
   {"id":"app1","project_id":"project-climate","role_id":"role-climate-fullstack","applicant_id":"user-alice","message":"I can build the comparison UI and connect it to a lightweight Python service.","status":"pending","created_at":T},
   {"id":"app2","project_id":"project-campus","role_id":"role-campus-backend","applicant_id":"user-bob","message":"The trust and messaging APIs fit my backend experience.","status":"pending","created_at":T},
   {"id":"app3","project_id":"project-climate","role_id":"role-climate-mobile","applicant_id":"user-erin","message":"I would love to lead the React Native client.","status":"accepted","created_at":T},
+  {"id":"app4","project_id":"project-health","role_id":"role-health-design","applicant_id":"user-finn","message":"I can help map user journeys and run quick usability tests.","status":"rejected","created_at":T},
+  {"id":"app5","project_id":"project-campus","role_id":"role-campus-design","applicant_id":"user-cora","message":"I started an initial UI kit before my schedule shifted.","status":"withdrawn","created_at":T},
  ],
  "teammate_requests": [
-  {"id":"req1","sender_id":"user-cora","receiver_id":"user-alice","project_id":"project-climate","message":"Your full-stack background looks ideal for GreenRoute. Want to build with us?","status":"pending","created_at":T},
-  {"id":"req2","sender_id":"user-alice","receiver_id":"user-diego","project_id":"project-campus","message":"Would you advise us on the trust scoring service?","status":"pending","created_at":T},
-  {"id":"req3","sender_id":"user-bob","receiver_id":"user-alice","project_id":"project-devtools","message":"Thanks for helping test our release preview flow.","status":"accepted","created_at":T},
+  {"id":"req1","sender_id":"user-cora","receiver_id":"user-alice","project_id":"project-climate","role_id":"role-climate-fullstack","message":"Your full-stack background looks ideal for GreenRoute. Want to build with us?","status":"pending","created_at":T},
+  {"id":"req2","sender_id":"user-alice","receiver_id":"user-diego","project_id":"project-campus","role_id":None,"message":"Would you advise us on the trust scoring service?","status":"pending","created_at":T},
+  {"id":"req3","sender_id":"user-bob","receiver_id":"user-alice","project_id":"project-devtools","role_id":None,"message":"Thanks for helping test our release preview flow.","status":"accepted","created_at":T},
+  {"id":"req4","sender_id":"user-diego","receiver_id":"user-bob","project_id":"project-health","role_id":None,"message":"Would you like to help scale the data pipelines?","status":"declined","created_at":T},
+  {"id":"req5","sender_id":"user-alice","receiver_id":"user-finn","project_id":"project-campus","role_id":"role-campus-design","message":"Inviting you to design the study and exchange dashboard.","status":"cancelled","created_at":T},
  ],
 }
 

@@ -7,6 +7,7 @@ from app.models.user import PublicUserProfile
 class TeammateRequestCreate(BaseModel):
     receiver_id: str
     project_id: Optional[str] = None
+    role_id: Optional[str] = None
     message: Optional[str] = None
 
 
@@ -22,6 +23,8 @@ class TeammateRequestRead(BaseModel):
     receiver: Optional[PublicUserProfile] = None
     project_id: Optional[str] = None
     project_title: Optional[str] = None
+    role_id: Optional[str] = None
+    role_name: Optional[str] = None
     message: Optional[str] = None
     status: str  # 'pending', 'accepted', 'declined', 'cancelled'
     created_at: Optional[datetime] = None

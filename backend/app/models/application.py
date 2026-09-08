@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import Optional, Literal
 from datetime import datetime
 from app.models.user import PublicUserProfile
+from app.models.match import MatchScoreResult
 
 
 class ProjectApplicationCreate(BaseModel):
@@ -23,5 +24,6 @@ class ProjectApplicationRead(BaseModel):
     applicant: Optional[PublicUserProfile] = None
     message: Optional[str] = None
     status: str  # 'pending', 'accepted', 'rejected', 'withdrawn'
+    match: Optional[MatchScoreResult] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

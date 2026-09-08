@@ -9,6 +9,7 @@ from app.models.application import (
 from app.models.user import PublicUserProfile
 from app.core.database import get_database
 from app.core.identity import get_user_id
+from app.services.matching import calculate_match_score
 
 router = APIRouter(tags=["applications"])
 
@@ -199,10 +200,21 @@ async def list_project_applications(id: str, authorization: str = Header(...)):
     for a in apps:
         applicant = _fetch_user_public(a["applicant_id"], database)
         role_name = None
+        match_result = None
         if a.get("role_id"):
-            r_res = database.table("project_roles").select("role_name").eq("id", a["role_id"]).execute()
+            r_res = database.table("project_roles").select("*").eq("id", a["role_id"]).execute()
             if r_res.data and len(r_res.data) > 0:
-                role_name = r_res.data[0]["role_name"]
+                role_row = r_res.data[0]
+                role_name = role_row["role_name"]
+                if applicant:
+                    match_result = calculate_match_score(
+                        user_skills=applicant.skills,
+                        user_roles=applicant.roles,
+                        user_availability=applicant.availability,
+                        role_name=role_row["role_name"],
+                        required_skills=role_row.get("required_skills") or [],
+                        project_category=proj.get("category"),
+                    )
 
         results.append(
             ProjectApplicationRead(
@@ -215,6 +227,7 @@ async def list_project_applications(id: str, authorization: str = Header(...)):
                 applicant=applicant,
                 message=a.get("message"),
                 status=a.get("status", "pending"),
+                match=match_result,
                 created_at=a.get("created_at"),
                 updated_at=a.get("updated_at"),
             )
@@ -248,15 +261,16 @@ async def respond_to_application(
         raise HTTPException(status_code=403, detail="Only project owner can decide on applications")
 
     role_name = None
+    role_row = None
     if payload.action == "accepted":
         role_id = app_row.get("role_id")
         if role_id:
             r_res = database.table("project_roles").select("*").eq("id", role_id).execute()
             if r_res.data and len(r_res.data) > 0:
-                role = r_res.data[0]
-                role_name = role["role_name"]
-                filled = role.get("filled_slots", 0)
-                slots = role.get("slots", 1)
+                role_row = r_res.data[0]
+                role_name = role_row["role_name"]
+                filled = role_row.get("filled_slots", 0)
+                slots = role_row.get("slots", 1)
                 if filled >= slots:
                     raise HTTPException(status_code=400, detail="Cannot accept application: role slots are already full")
 
@@ -266,14 +280,34 @@ async def respond_to_application(
                     role_update["status"] = "filled"
                 database.table("project_roles").update(role_update).eq("id", role_id).execute()
 
-        # Add to project_members
-        database.table("project_members").upsert({
-            "id": str(uuid.uuid4()),
-            "project_id": app_row["project_id"],
-            "user_id": app_row["applicant_id"],
-            "role_id": role_id,
-            "member_role": "Member",
-        }).execute()
+        # Add to project_members if not already a member
+        m_res = (
+            database.table("project_members")
+            .select("id")
+            .eq("project_id", app_row["project_id"])
+            .eq("user_id", app_row["applicant_id"])
+            .execute()
+        )
+        if not m_res.data or len(m_res.data) == 0:
+            database.table("project_members").insert({
+                "id": str(uuid.uuid4()),
+                "project_id": app_row["project_id"],
+                "user_id": app_row["applicant_id"],
+                "role_id": role_id,
+                "member_role": "Member",
+            }).execute()
+
+        # Auto-resolve reciprocal pending teammate requests between project and applicant
+        req_res = (
+            database.table("teammate_requests")
+            .select("id")
+            .eq("project_id", app_row["project_id"])
+            .eq("receiver_id", app_row["applicant_id"])
+            .eq("status", "pending")
+            .execute()
+        )
+        for req in (req_res.data or []):
+            database.table("teammate_requests").update({"status": "accepted"}).eq("id", req["id"]).execute()
 
         database.table("project_applications").update({"status": "accepted"}).eq("id", id).execute()
         app_row["status"] = "accepted"
@@ -282,6 +316,23 @@ async def respond_to_application(
         app_row["status"] = "rejected"
 
     applicant = _fetch_user_public(app_row["applicant_id"], database)
+
+    match_result = None
+    if applicant and app_row.get("role_id"):
+        if not role_row:
+            r_res = database.table("project_roles").select("*").eq("id", app_row["role_id"]).execute()
+            if r_res.data and len(r_res.data) > 0:
+                role_row = r_res.data[0]
+                role_name = role_row["role_name"]
+        if role_row:
+            match_result = calculate_match_score(
+                user_skills=applicant.skills,
+                user_roles=applicant.roles,
+                user_availability=applicant.availability,
+                role_name=role_row["role_name"],
+                required_skills=role_row.get("required_skills") or [],
+                project_category=proj.get("category"),
+            )
 
     return ProjectApplicationRead(
         id=str(app_row["id"]),
@@ -293,6 +344,7 @@ async def respond_to_application(
         applicant=applicant,
         message=app_row.get("message"),
         status=app_row["status"],
+        match=match_result,
         created_at=app_row.get("created_at"),
         updated_at=app_row.get("updated_at"),
     )

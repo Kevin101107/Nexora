@@ -209,9 +209,22 @@ export default function RequestsPage() {
                     </span>
                   </div>
 
-                  {req.project_title && (
-                    <div className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                      In relation to project: <strong>{req.project_title}</strong>
+                  {(req.project_title || req.role_name) && (
+                    <div className="flex items-center gap-2 flex-wrap pt-1 text-xs">
+                      {req.project_title && (
+                        <Link
+                          href={req.project_id ? `/projects/${req.project_id}` : "#"}
+                          className="font-semibold text-gray-700 dark:text-gray-300 hover:text-primary transition-colors flex items-center gap-1"
+                        >
+                          <FolderGit2 size={13} className="text-primary" />
+                          <span>{req.project_title}</span>
+                        </Link>
+                      )}
+                      {req.role_name && (
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/20">
+                          Role: {req.role_name}
+                        </span>
+                      )}
                     </div>
                   )}
 
@@ -270,12 +283,23 @@ export default function RequestsPage() {
                 const isPending = req.status === "pending";
 
                 return (
-                  <div key={req.id} className="card !p-5 space-y-2">
+                  <div key={req.id} className="card !p-5 space-y-2.5">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div>
-                        <h3 className="font-bold text-sm text-gray-900 dark:text-white">
-                          Invitation to {receiverName}
-                        </h3>
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="font-bold text-sm text-gray-900 dark:text-white">
+                            Invitation to {receiverName}
+                          </h3>
+                          {req.receiver?.username && (
+                            <Link
+                              href={`/profile/${req.receiver.username}`}
+                              className="text-[11px] text-primary hover:underline flex items-center gap-0.5"
+                            >
+                              @{req.receiver.username}
+                              <ExternalLink size={10} />
+                            </Link>
+                          )}
+                        </div>
                         {req.receiver?.headline && (
                           <p className="text-xs text-gray-400">{req.receiver.headline}</p>
                         )}
@@ -308,6 +332,25 @@ export default function RequestsPage() {
                         )}
                       </div>
                     </div>
+
+                    {(req.project_title || req.role_name) && (
+                      <div className="flex items-center gap-2 flex-wrap pt-0.5 text-xs">
+                        {req.project_title && (
+                          <Link
+                            href={req.project_id ? `/projects/${req.project_id}` : "#"}
+                            className="font-semibold text-gray-700 dark:text-gray-300 hover:text-primary transition-colors flex items-center gap-1"
+                          >
+                            <FolderGit2 size={13} className="text-primary" />
+                            <span>{req.project_title}</span>
+                          </Link>
+                        )}
+                        {req.role_name && (
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/20">
+                            Role: {req.role_name}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     {req.message && (
                       <p className="text-xs text-gray-600 dark:text-gray-300 pt-1">

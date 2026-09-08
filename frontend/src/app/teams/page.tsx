@@ -16,33 +16,49 @@ import {
   ExternalLink,
   ShieldCheck,
   FolderGit2,
+  Trash2,
 } from "lucide-react";
+import { useCallback } from "react";
 
 export default function TeamsPage() {
   const [teams, setTeams] = useState<UserTeam[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    async function loadTeams() {
-      setLoading(true);
+  const loadTeams = useCallback(async () => {
+    setLoading(true);
 
-      if (!session) {
-        setLoading(false);
-        return;
-      }
-      const api = createApiClient(DEVELOPMENT_USER_ID);
-      try {
-        const res = await api.get<UserTeam[]>("/teams/me");
-        setTeams(res || []);
-      } catch (err: any) {
-        setTeams([]);
-      } finally {
-        setLoading(false);
-      }
+    if (!session) {
+      setLoading(false);
+      return;
     }
-    loadTeams();
+    const api = createApiClient(DEVELOPMENT_USER_ID);
+    try {
+      const res = await api.get<UserTeam[]>("/teams/me");
+      setTeams(res || []);
+    } catch (err: any) {
+      setTeams([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadTeams();
+  }, [loadTeams]);
+
+  async function handleRemoveMember(projectId: string, memberId: string, memberName: string) {
+    if (!confirm(`Are you sure you want to remove ${memberName} from this squad?`)) return;
+    try {
+      if (!session) return;
+      const api = createApiClient(DEVELOPMENT_USER_ID);
+      await api.delete(`/projects/${projectId}/members/${memberId}`);
+      toast(`${memberName} removed from squad`);
+      loadTeams();
+    } catch (err: any) {
+      toast(err?.message || "Failed to remove member", "error");
+    }
+  }
 
   const categoryLabels: Record<string, string> = {
     hackathon: "Hackathon Squad",
@@ -171,6 +187,16 @@ export default function TeamsPage() {
                           >
                             <ExternalLink size={12} />
                           </Link>
+                        )}
+                        {team.my_member_role === "Owner" && m.member_role !== "Owner" && m.user_id !== DEVELOPMENT_USER_ID && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMember(team.id, m.id, memberName)}
+                            className="text-gray-400 hover:text-red-500 transition-colors p-1 shrink-0"
+                            title={`Remove ${memberName} from squad`}
+                          >
+                            <Trash2 size={13} />
+                          </button>
                         )}
                       </div>
                     );

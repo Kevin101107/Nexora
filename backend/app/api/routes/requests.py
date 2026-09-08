@@ -57,21 +57,44 @@ async def create_request(payload: TeammateRequestCreate, authorization: str = He
         raise HTTPException(status_code=404, detail="Recipient user not found")
 
     project_title = None
+    role_name = None
     if payload.project_id:
-        p_res = database.table("projects").select("title").eq("id", payload.project_id).execute()
+        p_res = database.table("projects").select("*").eq("id", payload.project_id).execute()
         if not p_res.data or len(p_res.data) == 0:
             raise HTTPException(status_code=404, detail="Project not found")
-        project_title = p_res.data[0]["title"]
+        proj = p_res.data[0]
+        project_title = proj["title"]
+
+        # Only project owner/lead can invite candidates to a project
+        if proj["owner_id"] != sender_id:
+            raise HTTPException(status_code=403, detail="Only the project owner can invite candidates to this project")
+
+        # Check if recipient is already a member
+        m_check = database.table("project_members").select("id").eq("project_id", payload.project_id).eq("user_id", payload.receiver_id).execute()
+        if m_check.data and len(m_check.data) > 0:
+            raise HTTPException(status_code=400, detail="User is already a member of this project")
+
+        # If role_id is specified, validate role
+        if payload.role_id:
+            r_check = database.table("project_roles").select("*").eq("id", payload.role_id).eq("project_id", payload.project_id).execute()
+            if not r_check.data or len(r_check.data) == 0:
+                raise HTTPException(status_code=404, detail="Role not found on this project")
+            role_row = r_check.data[0]
+            role_name = role_row["role_name"]
+            if role_row.get("status") == "filled" or role_row.get("filled_slots", 0) >= role_row.get("slots", 1):
+                raise HTTPException(status_code=400, detail="This role is already filled")
 
     # Check duplicate pending request
-    dup_check = (
+    dup_query = (
         database.table("teammate_requests")
         .select("id")
         .eq("sender_id", sender_id)
         .eq("receiver_id", payload.receiver_id)
         .eq("status", "pending")
-        .execute()
     )
+    if payload.project_id:
+        dup_query = dup_query.eq("project_id", payload.project_id)
+    dup_check = dup_query.execute()
     if dup_check.data and len(dup_check.data) > 0:
         raise HTTPException(status_code=409, detail="A request is already pending for this user")
 
@@ -81,6 +104,7 @@ async def create_request(payload: TeammateRequestCreate, authorization: str = He
         "sender_id": sender_id,
         "receiver_id": payload.receiver_id,
         "project_id": payload.project_id,
+        "role_id": payload.role_id,
         "message": payload.message,
         "status": "pending",
     }
@@ -100,6 +124,8 @@ async def create_request(payload: TeammateRequestCreate, authorization: str = He
         receiver=receiver,
         project_id=payload.project_id,
         project_title=project_title,
+        role_id=payload.role_id,
+        role_name=role_name,
         message=payload.message,
         status="pending",
     )
@@ -120,14 +146,11 @@ async def list_requests(
         elif direction == "sent":
             query = query.eq("sender_id", user_id)
         else:
-            # We fetch all requests where sender or receiver is user
-            # PostgREST or filter
             query = query.or_(f"sender_id.eq.{user_id},receiver_id.eq.{user_id}")
 
         res = query.order("created_at", desc=True).execute()
         rows = res.data or []
     except Exception as e:
-        # Fallback if or_ filter syntax differs
         try:
             r1 = database.table("teammate_requests").select("*").eq("receiver_id", user_id).execute()
             r2 = database.table("teammate_requests").select("*").eq("sender_id", user_id).execute()
@@ -151,6 +174,12 @@ async def list_requests(
             if p_res.data and len(p_res.data) > 0:
                 proj_title = p_res.data[0]["title"]
 
+        role_title = None
+        if r.get("role_id"):
+            ro_res = database.table("project_roles").select("role_name").eq("id", r["role_id"]).execute()
+            if ro_res.data and len(ro_res.data) > 0:
+                role_title = ro_res.data[0]["role_name"]
+
         results.append(
             TeammateRequestRead(
                 id=str(r["id"]),
@@ -160,6 +189,8 @@ async def list_requests(
                 receiver=get_cached_user(str(r["receiver_id"])),
                 project_id=str(r["project_id"]) if r.get("project_id") else None,
                 project_title=proj_title,
+                role_id=str(r["role_id"]) if r.get("role_id") else None,
+                role_name=role_title,
                 message=r.get("message"),
                 status=r.get("status", "pending"),
                 created_at=r.get("created_at"),
@@ -188,7 +219,56 @@ async def respond_to_request(
     if req_row["status"] != "pending":
         raise HTTPException(status_code=400, detail=f"Request is already {req_row['status']}")
 
-    new_status = payload.action  # 'accepted' or 'declined'
+    role_title = None
+    if payload.action == "accepted":
+        project_id = req_row.get("project_id")
+        role_id = req_row.get("role_id")
+
+        if project_id:
+            # Check role capacity if a role was targeted
+            if role_id:
+                ro_res = database.table("project_roles").select("*").eq("id", role_id).execute()
+                if ro_res.data and len(ro_res.data) > 0:
+                    role_info = ro_res.data[0]
+                    role_title = role_info["role_name"]
+                    filled = role_info.get("filled_slots", 0)
+                    slots = role_info.get("slots", 1)
+                    if filled >= slots:
+                        raise HTTPException(status_code=400, detail="Cannot accept invitation: role slots are already full")
+
+                    new_filled = filled + 1
+                    role_update = {"filled_slots": new_filled}
+                    if new_filled >= slots:
+                        role_update["status"] = "filled"
+                    database.table("project_roles").update(role_update).eq("id", role_id).execute()
+
+            # Check if user is already a member before inserting
+            m_res = database.table("project_members").select("id").eq("project_id", project_id).eq("user_id", user_id).execute()
+            if not m_res.data or len(m_res.data) == 0:
+                database.table("project_members").insert({
+                    "id": str(uuid.uuid4()),
+                    "project_id": project_id,
+                    "user_id": user_id,
+                    "role_id": role_id,
+                    "member_role": "Member",
+                }).execute()
+
+            # Auto-resolve reciprocal pending applications for this user on this project
+            app_res = (
+                database.table("project_applications")
+                .select("id")
+                .eq("project_id", project_id)
+                .eq("applicant_id", user_id)
+                .eq("status", "pending")
+                .execute()
+            )
+            for app in (app_res.data or []):
+                database.table("project_applications").update({"status": "accepted"}).eq("id", app["id"]).execute()
+
+        new_status = "accepted"
+    else:
+        new_status = "declined"
+
     database.table("teammate_requests").update({"status": new_status}).eq("id", id).execute()
     req_row["status"] = new_status
 
@@ -198,6 +278,11 @@ async def respond_to_request(
         if p_res.data and len(p_res.data) > 0:
             proj_title = p_res.data[0]["title"]
 
+    if req_row.get("role_id") and not role_title:
+        ro_res = database.table("project_roles").select("role_name").eq("id", req_row["role_id"]).execute()
+        if ro_res.data and len(ro_res.data) > 0:
+            role_title = ro_res.data[0]["role_name"]
+
     return TeammateRequestRead(
         id=str(req_row["id"]),
         sender_id=str(req_row["sender_id"]),
@@ -206,6 +291,8 @@ async def respond_to_request(
         receiver=_fetch_user_public(req_row["receiver_id"], database),
         project_id=str(req_row["project_id"]) if req_row.get("project_id") else None,
         project_title=proj_title,
+        role_id=str(req_row["role_id"]) if req_row.get("role_id") else None,
+        role_name=role_title,
         message=req_row.get("message"),
         status=new_status,
         created_at=req_row.get("created_at"),
@@ -238,6 +325,12 @@ async def cancel_request(id: str, authorization: str = Header(...)):
         if p_res.data and len(p_res.data) > 0:
             proj_title = p_res.data[0]["title"]
 
+    role_title = None
+    if req_row.get("role_id"):
+        ro_res = database.table("project_roles").select("role_name").eq("id", req_row["role_id"]).execute()
+        if ro_res.data and len(ro_res.data) > 0:
+            role_title = ro_res.data[0]["role_name"]
+
     return TeammateRequestRead(
         id=str(req_row["id"]),
         sender_id=str(req_row["sender_id"]),
@@ -246,6 +339,8 @@ async def cancel_request(id: str, authorization: str = Header(...)):
         receiver=_fetch_user_public(req_row["receiver_id"], database),
         project_id=str(req_row["project_id"]) if req_row.get("project_id") else None,
         project_title=proj_title,
+        role_id=str(req_row["role_id"]) if req_row.get("role_id") else None,
+        role_name=role_title,
         message=req_row.get("message"),
         status="cancelled",
         created_at=req_row.get("created_at"),

@@ -438,3 +438,51 @@ async def delete_project_role(id: str, role_id: str, authorization: str = Header
         raise HTTPException(status_code=500, detail=f"Failed to delete role: {str(e)}")
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ── Members Management ────────────────────────────────────────────────────────
+
+@router.delete("/{id}/members/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_project_member(id: str, member_id: str, authorization: str = Header(...)):
+    user_id = await get_user_id(authorization)
+    database = get_database()
+
+    # 1. Check project
+    res = database.table("projects").select("*").eq("id", id).execute()
+    if not res.data or len(res.data) == 0:
+        raise HTTPException(status_code=404, detail="Project not found")
+    proj = res.data[0]
+
+    # 2. Check ownership
+    if proj["owner_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Only project owner can remove squad members")
+
+    # 3. Find member in project
+    m_res = database.table("project_members").select("*").eq("id", member_id).eq("project_id", id).execute()
+    if not m_res.data or len(m_res.data) == 0:
+        raise HTTPException(status_code=404, detail="Project member not found")
+    member_row = m_res.data[0]
+
+    # 4. Prevent removing project owner
+    if member_row.get("user_id") == proj["owner_id"] or member_row.get("member_role") == "Owner":
+        raise HTTPException(status_code=400, detail="Project owner cannot be removed from the project")
+
+    # 5. If member held a role, decrement filled_slots and reopen role if needed
+    role_id = member_row.get("role_id")
+    if role_id:
+        r_res = database.table("project_roles").select("*").eq("id", role_id).execute()
+        if r_res.data and len(r_res.data) > 0:
+            role_row = r_res.data[0]
+            new_filled = max(0, role_row.get("filled_slots", 1) - 1)
+            role_update = {"filled_slots": new_filled}
+            if role_row.get("status") == "filled" and new_filled < role_row.get("slots", 1):
+                role_update["status"] = "open"
+            database.table("project_roles").update(role_update).eq("id", role_id).execute()
+
+    # 6. Delete member
+    try:
+        database.table("project_members").delete().eq("id", member_id).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to remove member: {str(e)}")
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
