@@ -12,16 +12,16 @@ from app.models.project import (
     ProjectMemberRead,
 )
 from app.models.user import PublicUserProfile
-from app.core.supabase import get_supabase
-from app.core.auth import get_user_id
+from app.core.database import get_database
+from app.core.identity import get_user_id
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
 
-def _fetch_user_public(user_id: str, supabase) -> Optional[PublicUserProfile]:
+def _fetch_user_public(user_id: str, database) -> Optional[PublicUserProfile]:
     try:
         res = (
-            supabase.table("users")
+            database.table("users")
             .select("id, display_name, avatar_url, username, headline, bio, skills, roles, interests, github_url, linkedin_url, availability, created_at")
             .eq("id", user_id)
             .execute()
@@ -48,14 +48,14 @@ def _fetch_user_public(user_id: str, supabase) -> Optional[PublicUserProfile]:
     return None
 
 
-def _build_project_read(p_row: dict, supabase) -> ProjectRead:
+def _build_project_read(p_row: dict, database) -> ProjectRead:
     project_id = str(p_row["id"])
-    owner = _fetch_user_public(p_row["owner_id"], supabase)
+    owner = _fetch_user_public(p_row["owner_id"], database)
 
     # Fetch roles
     roles: List[ProjectRoleRead] = []
     try:
-        r_res = supabase.table("project_roles").select("*").eq("project_id", project_id).execute()
+        r_res = database.table("project_roles").select("*").eq("project_id", project_id).execute()
         if r_res.data:
             for r in r_res.data:
                 roles.append(
@@ -78,10 +78,10 @@ def _build_project_read(p_row: dict, supabase) -> ProjectRead:
     members: List[ProjectMemberRead] = []
     role_map = {r.id: r.role_name for r in roles}
     try:
-        m_res = supabase.table("project_members").select("*").eq("project_id", project_id).execute()
+        m_res = database.table("project_members").select("*").eq("project_id", project_id).execute()
         if m_res.data:
             for m in m_res.data:
-                u_profile = _fetch_user_public(m["user_id"], supabase)
+                u_profile = _fetch_user_public(m["user_id"], database)
                 rid = str(m["role_id"]) if m.get("role_id") else None
                 members.append(
                     ProjectMemberRead(
@@ -121,7 +121,7 @@ def _build_project_read(p_row: dict, supabase) -> ProjectRead:
 @router.post("", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)
 async def create_project(payload: ProjectCreate, authorization: str = Header(...)):
     user_id = await get_user_id(authorization)
-    supabase = get_supabase()
+    database = get_database()
 
     proj_id = str(uuid.uuid4())
     proj_row = {
@@ -135,14 +135,14 @@ async def create_project(payload: ProjectCreate, authorization: str = Header(...
     }
 
     try:
-        supabase.table("projects").insert(proj_row).execute()
+        database.table("projects").insert(proj_row).execute()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create project: {str(e)}")
 
     # Add owner as member with 'Owner' role
     member_id = str(uuid.uuid4())
     try:
-        supabase.table("project_members").insert({
+        database.table("project_members").insert({
             "id": member_id,
             "project_id": proj_id,
             "user_id": user_id,
@@ -155,7 +155,7 @@ async def create_project(payload: ProjectCreate, authorization: str = Header(...
     if payload.roles:
         for r in payload.roles:
             try:
-                supabase.table("project_roles").insert({
+                database.table("project_roles").insert({
                     "id": str(uuid.uuid4()),
                     "project_id": proj_id,
                     "role_name": r.role_name.strip(),
@@ -168,7 +168,7 @@ async def create_project(payload: ProjectCreate, authorization: str = Header(...
             except Exception:
                 pass
 
-    return _build_project_read(proj_row, supabase)
+    return _build_project_read(proj_row, database)
 
 
 @router.get("", response_model=List[ProjectListItem])
@@ -177,9 +177,9 @@ async def list_projects(
     category: Optional[str] = Query(None, description="Filter by category"),
     status: Optional[str] = Query(None, description="Filter by status"),
 ):
-    supabase = get_supabase()
+    database = get_database()
     try:
-        query = supabase.table("projects").select("*").eq("visibility", "public")
+        query = database.table("projects").select("*").eq("visibility", "public")
         if status and status != "all":
             query = query.eq("status", status)
         if category and category != "all":
@@ -200,11 +200,11 @@ async def list_projects(
     items: List[ProjectListItem] = []
     for r in rows:
         proj_id = str(r["id"])
-        owner = _fetch_user_public(r["owner_id"], supabase)
+        owner = _fetch_user_public(r["owner_id"], database)
         # Fetch roles
         roles: List[ProjectRoleRead] = []
         try:
-            r_res = supabase.table("project_roles").select("*").eq("project_id", proj_id).execute()
+            r_res = database.table("project_roles").select("*").eq("project_id", proj_id).execute()
             if r_res.data:
                 for ro in r_res.data:
                     roles.append(
@@ -226,7 +226,7 @@ async def list_projects(
         # Member count
         members_count = 1
         try:
-            m_res = supabase.table("project_members").select("id", count="exact").eq("project_id", proj_id).execute()
+            m_res = database.table("project_members").select("id", count="exact").eq("project_id", proj_id).execute()
             if m_res.count is not None:
                 members_count = m_res.count
             elif m_res.data:
@@ -258,9 +258,9 @@ async def list_projects(
 
 @router.get("/{id}", response_model=ProjectRead)
 async def get_project(id: str, authorization: Optional[str] = Header(None)):
-    supabase = get_supabase()
+    database = get_database()
     try:
-        res = supabase.table("projects").select("*").eq("id", id).execute()
+        res = database.table("projects").select("*").eq("id", id).execute()
         if not res.data or len(res.data) == 0:
             raise HTTPException(status_code=404, detail="Project not found")
         row = res.data[0]
@@ -275,19 +275,19 @@ async def get_project(id: str, authorization: Optional[str] = Header(None)):
         user_id = await get_user_id(authorization)
         if row["owner_id"] != user_id:
             # Check membership
-            m_res = supabase.table("project_members").select("id").eq("project_id", id).eq("user_id", user_id).execute()
+            m_res = database.table("project_members").select("id").eq("project_id", id).eq("user_id", user_id).execute()
             if not m_res.data or len(m_res.data) == 0:
                 raise HTTPException(status_code=403, detail="Not authorized to view this private project")
 
-    return _build_project_read(row, supabase)
+    return _build_project_read(row, database)
 
 
 @router.patch("/{id}", response_model=ProjectRead)
 async def update_project(id: str, payload: ProjectUpdate, authorization: str = Header(...)):
     user_id = await get_user_id(authorization)
-    supabase = get_supabase()
+    database = get_database()
 
-    res = supabase.table("projects").select("*").eq("id", id).execute()
+    res = database.table("projects").select("*").eq("id", id).execute()
     if not res.data or len(res.data) == 0:
         raise HTTPException(status_code=404, detail="Project not found")
     proj = res.data[0]
@@ -298,20 +298,20 @@ async def update_project(id: str, payload: ProjectUpdate, authorization: str = H
     body = payload.model_dump(exclude_unset=True)
     if body:
         try:
-            supabase.table("projects").update(body).eq("id", id).execute()
+            database.table("projects").update(body).eq("id", id).execute()
             proj.update(body)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to update project: {str(e)}")
 
-    return _build_project_read(proj, supabase)
+    return _build_project_read(proj, database)
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_project(id: str, authorization: str = Header(...)):
     user_id = await get_user_id(authorization)
-    supabase = get_supabase()
+    database = get_database()
 
-    res = supabase.table("projects").select("*").eq("id", id).execute()
+    res = database.table("projects").select("*").eq("id", id).execute()
     if not res.data or len(res.data) == 0:
         raise HTTPException(status_code=404, detail="Project not found")
     proj = res.data[0]
@@ -320,7 +320,7 @@ async def delete_project(id: str, authorization: str = Header(...)):
         raise HTTPException(status_code=403, detail="Only project owner can delete this project")
 
     try:
-        supabase.table("projects").delete().eq("id", id).execute()
+        database.table("projects").delete().eq("id", id).execute()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete project: {str(e)}")
 
@@ -332,9 +332,9 @@ async def delete_project(id: str, authorization: str = Header(...)):
 @router.post("/{id}/roles", response_model=ProjectRoleRead, status_code=status.HTTP_201_CREATED)
 async def create_project_role(id: str, payload: ProjectRoleCreate, authorization: str = Header(...)):
     user_id = await get_user_id(authorization)
-    supabase = get_supabase()
+    database = get_database()
 
-    res = supabase.table("projects").select("*").eq("id", id).execute()
+    res = database.table("projects").select("*").eq("id", id).execute()
     if not res.data or len(res.data) == 0:
         raise HTTPException(status_code=404, detail="Project not found")
     proj = res.data[0]
@@ -354,7 +354,7 @@ async def create_project_role(id: str, payload: ProjectRoleCreate, authorization
         "status": "open",
     }
     try:
-        supabase.table("project_roles").insert(role_row).execute()
+        database.table("project_roles").insert(role_row).execute()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create role: {str(e)}")
 
@@ -375,9 +375,9 @@ async def update_project_role(
     id: str, role_id: str, payload: ProjectRoleUpdate, authorization: str = Header(...)
 ):
     user_id = await get_user_id(authorization)
-    supabase = get_supabase()
+    database = get_database()
 
-    res = supabase.table("projects").select("*").eq("id", id).execute()
+    res = database.table("projects").select("*").eq("id", id).execute()
     if not res.data or len(res.data) == 0:
         raise HTTPException(status_code=404, detail="Project not found")
     proj = res.data[0]
@@ -385,7 +385,7 @@ async def update_project_role(
     if proj["owner_id"] != user_id:
         raise HTTPException(status_code=403, detail="Only project owner can update roles")
 
-    r_res = supabase.table("project_roles").select("*").eq("id", role_id).eq("project_id", id).execute()
+    r_res = database.table("project_roles").select("*").eq("id", role_id).eq("project_id", id).execute()
     if not r_res.data or len(r_res.data) == 0:
         raise HTTPException(status_code=404, detail="Role not found")
     role_row = r_res.data[0]
@@ -397,7 +397,7 @@ async def update_project_role(
 
     if body:
         try:
-            supabase.table("project_roles").update(body).eq("id", role_id).execute()
+            database.table("project_roles").update(body).eq("id", role_id).execute()
             role_row.update(body)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to update role: {str(e)}")
@@ -418,9 +418,9 @@ async def update_project_role(
 @router.delete("/{id}/roles/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_project_role(id: str, role_id: str, authorization: str = Header(...)):
     user_id = await get_user_id(authorization)
-    supabase = get_supabase()
+    database = get_database()
 
-    res = supabase.table("projects").select("*").eq("id", id).execute()
+    res = database.table("projects").select("*").eq("id", id).execute()
     if not res.data or len(res.data) == 0:
         raise HTTPException(status_code=404, detail="Project not found")
     proj = res.data[0]
@@ -428,12 +428,12 @@ async def delete_project_role(id: str, role_id: str, authorization: str = Header
     if proj["owner_id"] != user_id:
         raise HTTPException(status_code=403, detail="Only project owner can delete roles")
 
-    r_res = supabase.table("project_roles").select("id").eq("id", role_id).eq("project_id", id).execute()
+    r_res = database.table("project_roles").select("id").eq("id", role_id).eq("project_id", id).execute()
     if not r_res.data or len(r_res.data) == 0:
         raise HTTPException(status_code=404, detail="Role not found")
 
     try:
-        supabase.table("project_roles").delete().eq("id", role_id).execute()
+        database.table("project_roles").delete().eq("id", role_id).execute()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete role: {str(e)}")
 

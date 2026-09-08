@@ -1,7 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Header, Query
-from app.core.supabase import get_supabase
-from app.core.auth import get_user_id
+from app.core.database import get_database
+from app.core.identity import get_user_id
 from app.models.user import PublicUserProfile
 from app.models.project import ProjectRoleRead, ProjectListItem
 from app.models.match import (
@@ -71,11 +71,11 @@ async def get_user_role_match(
     role_id: str,
     authorization: Optional[str] = Header(None),
 ):
-    supabase = get_supabase()
+    database = get_database()
 
     # 1. Fetch User
     u_res = (
-        supabase.table("users")
+        database.table("users")
         .select("id, display_name, avatar_url, username, headline, bio, skills, roles, interests, github_url, linkedin_url, availability, created_at")
         .eq("id", user_id)
         .execute()
@@ -85,14 +85,14 @@ async def get_user_role_match(
     user_profile = _row_to_public_profile(u_res.data[0])
 
     # 2. Fetch Project Role
-    r_res = supabase.table("project_roles").select("*").eq("id", role_id).execute()
+    r_res = database.table("project_roles").select("*").eq("id", role_id).execute()
     if not r_res.data or len(r_res.data) == 0:
         raise HTTPException(status_code=404, detail="Project role not found")
     role_row = r_res.data[0]
     role_model = _row_to_project_role(role_row)
 
     # 3. Fetch Parent Project
-    p_res = supabase.table("projects").select("*").eq("id", role_row["project_id"]).execute()
+    p_res = database.table("projects").select("*").eq("id", role_row["project_id"]).execute()
     if not p_res.data or len(p_res.data) == 0:
         raise HTTPException(status_code=404, detail="Project not found")
     proj_row = p_res.data[0]
@@ -103,14 +103,14 @@ async def get_user_role_match(
             raise HTTPException(status_code=403, detail="Private project requires authorization")
         caller_id = await get_user_id(authorization)
         if proj_row["owner_id"] != caller_id:
-            m_res = supabase.table("project_members").select("id").eq("project_id", proj_row["id"]).eq("user_id", caller_id).execute()
+            m_res = database.table("project_members").select("id").eq("project_id", proj_row["id"]).eq("user_id", caller_id).execute()
             if not m_res.data or len(m_res.data) == 0:
                 raise HTTPException(status_code=403, detail="Not authorized to view private project match")
 
     # Fetch project roles for summary
-    all_roles_res = supabase.table("project_roles").select("*").eq("project_id", proj_row["id"]).execute()
+    all_roles_res = database.table("project_roles").select("*").eq("project_id", proj_row["id"]).execute()
     roles_list = [_row_to_project_role(r) for r in (all_roles_res.data or [])]
-    members_res = supabase.table("project_members").select("id").eq("project_id", proj_row["id"]).execute()
+    members_res = database.table("project_members").select("id").eq("project_id", proj_row["id"]).execute()
     members_count = len(members_res.data or [])
 
     proj_item = _row_to_project_list_item(proj_row, roles_list, members_count)
@@ -143,10 +143,10 @@ async def get_recommended_builders_for_role(
     limit: int = Query(20, ge=1, le=50, description="Max candidate results to return"),
     authorization: Optional[str] = Header(None),
 ):
-    supabase = get_supabase()
+    database = get_database()
 
     # 1. Fetch Project
-    p_res = supabase.table("projects").select("*").eq("id", project_id).execute()
+    p_res = database.table("projects").select("*").eq("id", project_id).execute()
     if not p_res.data or len(p_res.data) == 0:
         raise HTTPException(status_code=404, detail="Project not found")
     proj_row = p_res.data[0]
@@ -157,12 +157,12 @@ async def get_recommended_builders_for_role(
             raise HTTPException(status_code=403, detail="Private project requires authorization")
         caller_id = await get_user_id(authorization)
         if proj_row["owner_id"] != caller_id:
-            m_res = supabase.table("project_members").select("id").eq("project_id", project_id).eq("user_id", caller_id).execute()
+            m_res = database.table("project_members").select("id").eq("project_id", project_id).eq("user_id", caller_id).execute()
             if not m_res.data or len(m_res.data) == 0:
                 raise HTTPException(status_code=403, detail="Not authorized to access private project candidates")
 
     # 2. Fetch Role
-    r_res = supabase.table("project_roles").select("*").eq("id", role_id).eq("project_id", project_id).execute()
+    r_res = database.table("project_roles").select("*").eq("id", role_id).eq("project_id", project_id).execute()
     if not r_res.data or len(r_res.data) == 0:
         raise HTTPException(status_code=404, detail="Role not found on this project")
     role_row = r_res.data[0]
@@ -173,13 +173,13 @@ async def get_recommended_builders_for_role(
     # - Existing project members
     # - Users who have already been accepted
     excluded_user_ids = {str(proj_row["owner_id"])}
-    m_res = supabase.table("project_members").select("user_id").eq("project_id", project_id).execute()
+    m_res = database.table("project_members").select("user_id").eq("project_id", project_id).execute()
     for m in (m_res.data or []):
         excluded_user_ids.add(str(m["user_id"]))
 
     # 4. Fetch Candidate Users
     u_res = (
-        supabase.table("users")
+        database.table("users")
         .select("id, display_name, avatar_url, username, headline, bio, skills, roles, interests, github_url, linkedin_url, availability, created_at")
         .execute()
     )
@@ -226,11 +226,11 @@ async def get_recommended_roles_for_me(
     authorization: str = Header(...),
 ):
     caller_id = await get_user_id(authorization)
-    supabase = get_supabase()
+    database = get_database()
 
     # 1. Fetch Current User Profile
     u_res = (
-        supabase.table("users")
+        database.table("users")
         .select("id, display_name, avatar_url, username, headline, bio, skills, roles, interests, github_url, linkedin_url, availability, created_at")
         .eq("id", caller_id)
         .execute()
@@ -240,12 +240,12 @@ async def get_recommended_roles_for_me(
     current_user = _row_to_public_profile(u_res.data[0])
 
     # 2. Fetch Projects where caller is already a member
-    mem_res = supabase.table("project_members").select("project_id").eq("user_id", caller_id).execute()
+    mem_res = database.table("project_members").select("project_id").eq("user_id", caller_id).execute()
     my_project_ids = {str(m["project_id"]) for m in (mem_res.data or [])}
 
     # 3. Fetch all public recruiting projects (excluding projects caller owns or is already member of)
     p_res = (
-        supabase.table("projects")
+        database.table("projects")
         .select("*")
         .eq("visibility", "public")
         .eq("status", "recruiting")
@@ -262,7 +262,7 @@ async def get_recommended_roles_for_me(
 
     # 4. Fetch open roles across these candidate projects
     r_res = (
-        supabase.table("project_roles")
+        database.table("project_roles")
         .select("*")
         .eq("status", "open")
         .execute()

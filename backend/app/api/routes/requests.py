@@ -7,16 +7,16 @@ from app.models.request import (
     TeammateRequestRead,
 )
 from app.models.user import PublicUserProfile
-from app.core.supabase import get_supabase
-from app.core.auth import get_user_id
+from app.core.database import get_database
+from app.core.identity import get_user_id
 
 router = APIRouter(prefix="/requests", tags=["requests"])
 
 
-def _fetch_user_public(user_id: str, supabase) -> Optional[PublicUserProfile]:
+def _fetch_user_public(user_id: str, database) -> Optional[PublicUserProfile]:
     try:
         res = (
-            supabase.table("users")
+            database.table("users")
             .select("id, display_name, avatar_url, username, headline, bio, skills, roles, interests, github_url, linkedin_url, availability, created_at")
             .eq("id", user_id)
             .execute()
@@ -49,23 +49,23 @@ async def create_request(payload: TeammateRequestCreate, authorization: str = He
     if payload.receiver_id == sender_id:
         raise HTTPException(status_code=400, detail="Cannot send request to yourself")
 
-    supabase = get_supabase()
+    database = get_database()
 
     # Check receiver exists
-    u_res = supabase.table("users").select("id").eq("id", payload.receiver_id).execute()
+    u_res = database.table("users").select("id").eq("id", payload.receiver_id).execute()
     if not u_res.data or len(u_res.data) == 0:
         raise HTTPException(status_code=404, detail="Recipient user not found")
 
     project_title = None
     if payload.project_id:
-        p_res = supabase.table("projects").select("title").eq("id", payload.project_id).execute()
+        p_res = database.table("projects").select("title").eq("id", payload.project_id).execute()
         if not p_res.data or len(p_res.data) == 0:
             raise HTTPException(status_code=404, detail="Project not found")
         project_title = p_res.data[0]["title"]
 
     # Check duplicate pending request
     dup_check = (
-        supabase.table("teammate_requests")
+        database.table("teammate_requests")
         .select("id")
         .eq("sender_id", sender_id)
         .eq("receiver_id", payload.receiver_id)
@@ -85,12 +85,12 @@ async def create_request(payload: TeammateRequestCreate, authorization: str = He
         "status": "pending",
     }
     try:
-        supabase.table("teammate_requests").insert(req_row).execute()
+        database.table("teammate_requests").insert(req_row).execute()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send request: {str(e)}")
 
-    sender = _fetch_user_public(sender_id, supabase)
-    receiver = _fetch_user_public(payload.receiver_id, supabase)
+    sender = _fetch_user_public(sender_id, database)
+    receiver = _fetch_user_public(payload.receiver_id, database)
 
     return TeammateRequestRead(
         id=req_id,
@@ -111,10 +111,10 @@ async def list_requests(
     authorization: str = Header(...),
 ):
     user_id = await get_user_id(authorization)
-    supabase = get_supabase()
+    database = get_database()
 
     try:
-        query = supabase.table("teammate_requests").select("*")
+        query = database.table("teammate_requests").select("*")
         if direction == "received":
             query = query.eq("receiver_id", user_id)
         elif direction == "sent":
@@ -129,8 +129,8 @@ async def list_requests(
     except Exception as e:
         # Fallback if or_ filter syntax differs
         try:
-            r1 = supabase.table("teammate_requests").select("*").eq("receiver_id", user_id).execute()
-            r2 = supabase.table("teammate_requests").select("*").eq("sender_id", user_id).execute()
+            r1 = database.table("teammate_requests").select("*").eq("receiver_id", user_id).execute()
+            r2 = database.table("teammate_requests").select("*").eq("sender_id", user_id).execute()
             combined = {r["id"]: r for r in (r1.data or []) + (r2.data or [])}
             rows = sorted(combined.values(), key=lambda x: x.get("created_at") or "", reverse=True)
         except Exception:
@@ -141,13 +141,13 @@ async def list_requests(
 
     def get_cached_user(uid: str):
         if uid not in user_cache:
-            user_cache[uid] = _fetch_user_public(uid, supabase)
+            user_cache[uid] = _fetch_user_public(uid, database)
         return user_cache[uid]
 
     for r in rows:
         proj_title = None
         if r.get("project_id"):
-            p_res = supabase.table("projects").select("title").eq("id", r["project_id"]).execute()
+            p_res = database.table("projects").select("title").eq("id", r["project_id"]).execute()
             if p_res.data and len(p_res.data) > 0:
                 proj_title = p_res.data[0]["title"]
 
@@ -175,9 +175,9 @@ async def respond_to_request(
     id: str, payload: TeammateRequestDecision, authorization: str = Header(...)
 ):
     user_id = await get_user_id(authorization)
-    supabase = get_supabase()
+    database = get_database()
 
-    r_res = supabase.table("teammate_requests").select("*").eq("id", id).execute()
+    r_res = database.table("teammate_requests").select("*").eq("id", id).execute()
     if not r_res.data or len(r_res.data) == 0:
         raise HTTPException(status_code=404, detail="Request not found")
     req_row = r_res.data[0]
@@ -189,21 +189,21 @@ async def respond_to_request(
         raise HTTPException(status_code=400, detail=f"Request is already {req_row['status']}")
 
     new_status = payload.action  # 'accepted' or 'declined'
-    supabase.table("teammate_requests").update({"status": new_status}).eq("id", id).execute()
+    database.table("teammate_requests").update({"status": new_status}).eq("id", id).execute()
     req_row["status"] = new_status
 
     proj_title = None
     if req_row.get("project_id"):
-        p_res = supabase.table("projects").select("title").eq("id", req_row["project_id"]).execute()
+        p_res = database.table("projects").select("title").eq("id", req_row["project_id"]).execute()
         if p_res.data and len(p_res.data) > 0:
             proj_title = p_res.data[0]["title"]
 
     return TeammateRequestRead(
         id=str(req_row["id"]),
         sender_id=str(req_row["sender_id"]),
-        sender=_fetch_user_public(req_row["sender_id"], supabase),
+        sender=_fetch_user_public(req_row["sender_id"], database),
         receiver_id=str(req_row["receiver_id"]),
-        receiver=_fetch_user_public(req_row["receiver_id"], supabase),
+        receiver=_fetch_user_public(req_row["receiver_id"], database),
         project_id=str(req_row["project_id"]) if req_row.get("project_id") else None,
         project_title=proj_title,
         message=req_row.get("message"),
@@ -216,9 +216,9 @@ async def respond_to_request(
 @router.post("/{id}/cancel", response_model=TeammateRequestRead)
 async def cancel_request(id: str, authorization: str = Header(...)):
     user_id = await get_user_id(authorization)
-    supabase = get_supabase()
+    database = get_database()
 
-    r_res = supabase.table("teammate_requests").select("*").eq("id", id).execute()
+    r_res = database.table("teammate_requests").select("*").eq("id", id).execute()
     if not r_res.data or len(r_res.data) == 0:
         raise HTTPException(status_code=404, detail="Request not found")
     req_row = r_res.data[0]
@@ -229,21 +229,21 @@ async def cancel_request(id: str, authorization: str = Header(...)):
     if req_row["status"] != "pending":
         raise HTTPException(status_code=400, detail="Only pending requests can be cancelled")
 
-    supabase.table("teammate_requests").update({"status": "cancelled"}).eq("id", id).execute()
+    database.table("teammate_requests").update({"status": "cancelled"}).eq("id", id).execute()
     req_row["status"] = "cancelled"
 
     proj_title = None
     if req_row.get("project_id"):
-        p_res = supabase.table("projects").select("title").eq("id", req_row["project_id"]).execute()
+        p_res = database.table("projects").select("title").eq("id", req_row["project_id"]).execute()
         if p_res.data and len(p_res.data) > 0:
             proj_title = p_res.data[0]["title"]
 
     return TeammateRequestRead(
         id=str(req_row["id"]),
         sender_id=str(req_row["sender_id"]),
-        sender=_fetch_user_public(req_row["sender_id"], supabase),
+        sender=_fetch_user_public(req_row["sender_id"], database),
         receiver_id=str(req_row["receiver_id"]),
-        receiver=_fetch_user_public(req_row["receiver_id"], supabase),
+        receiver=_fetch_user_public(req_row["receiver_id"], database),
         project_id=str(req_row["project_id"]) if req_row.get("project_id") else None,
         project_title=proj_title,
         message=req_row.get("message"),

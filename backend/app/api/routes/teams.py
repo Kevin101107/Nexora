@@ -3,8 +3,8 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Header
 from app.models.user import PublicUserProfile
-from app.core.supabase import get_supabase
-from app.core.auth import get_user_id
+from app.core.database import get_database
+from app.core.identity import get_user_id
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 
@@ -31,10 +31,10 @@ class UserTeamRead(BaseModel):
     created_at: Optional[datetime] = None
 
 
-def _fetch_user_public(user_id: str, supabase) -> Optional[PublicUserProfile]:
+def _fetch_user_public(user_id: str, database) -> Optional[PublicUserProfile]:
     try:
         res = (
-            supabase.table("users")
+            database.table("users")
             .select("id, display_name, avatar_url, username, headline, bio, skills, roles, interests, github_url, linkedin_url, availability, created_at")
             .eq("id", user_id)
             .execute()
@@ -64,11 +64,11 @@ def _fetch_user_public(user_id: str, supabase) -> Optional[PublicUserProfile]:
 @router.get("/me", response_model=List[UserTeamRead])
 async def list_my_teams(authorization: str = Header(...)):
     user_id = await get_user_id(authorization)
-    supabase = get_supabase()
+    database = get_database()
 
     try:
         # Find all project_members rows for user
-        m_res = supabase.table("project_members").select("*").eq("user_id", user_id).execute()
+        m_res = database.table("project_members").select("*").eq("user_id", user_id).execute()
         memberships = m_res.data or []
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch memberships: {str(e)}")
@@ -78,22 +78,22 @@ async def list_my_teams(authorization: str = Header(...)):
 
     def get_cached_user(uid: str):
         if uid not in user_cache:
-            user_cache[uid] = _fetch_user_public(uid, supabase)
+            user_cache[uid] = _fetch_user_public(uid, database)
         return user_cache[uid]
 
     for m in memberships:
         proj_id = m["project_id"]
-        p_res = supabase.table("projects").select("*").eq("id", proj_id).execute()
+        p_res = database.table("projects").select("*").eq("id", proj_id).execute()
         if not p_res.data or len(p_res.data) == 0:
             continue
         proj = p_res.data[0]
 
         # Fetch all members of this project
-        all_m_res = supabase.table("project_members").select("*").eq("project_id", proj_id).execute()
+        all_m_res = database.table("project_members").select("*").eq("project_id", proj_id).execute()
         all_members_rows = all_m_res.data or []
 
         # Fetch role names
-        r_res = supabase.table("project_roles").select("id, role_name").eq("project_id", proj_id).execute()
+        r_res = database.table("project_roles").select("id, role_name").eq("project_id", proj_id).execute()
         role_map = {str(r["id"]): r["role_name"] for r in (r_res.data or [])}
 
         roster: List[TeamMemberItem] = []

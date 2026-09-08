@@ -1,10 +1,7 @@
 import pytest
 from typing import Dict, Any, List
-from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
 from main import app
-import app.core.auth as auth_module
-import app.core.supabase as supabase_module
 
 
 class MockResponse:
@@ -137,18 +134,9 @@ class MockTableQuery:
         return MockResponse(data=results, count=count_val)
 
 
-class MockSupabaseClient:
+class MockDatabase:
     def __init__(self, db: Dict[str, List[Dict[str, Any]]]):
         self.db = db
-        self.auth = MagicMock()
-        admin_mock = MagicMock()
-        admin_mock.get_user_by_id = lambda uid: MagicMock(
-            user=MagicMock(
-                email=f"{uid}@example.com",
-                user_metadata={"display_name": uid.capitalize(), "avatar_url": None},
-            )
-        )
-        self.auth.admin = admin_mock
 
     def table(self, table_name: str):
         return MockTableQuery(self.db, table_name)
@@ -198,7 +186,7 @@ def mock_db():
 
 @pytest.fixture
 def client(mock_db, monkeypatch):
-    mock_supabase = MockSupabaseClient(mock_db)
+    mock_database = MockDatabase(mock_db)
     
     async def mock_get_user_id(authorization: str) -> str:
         token = authorization.removeprefix("Bearer ").strip()
@@ -208,8 +196,8 @@ def client(mock_db, monkeypatch):
         return token
 
     modules_to_patch = [
-        "app.core.supabase",
-        "app.core.auth",
+        "app.core.database",
+        "app.core.identity",
         "app.api.routes.users",
         "app.api.routes.projects",
         "app.api.routes.applications",
@@ -219,7 +207,7 @@ def client(mock_db, monkeypatch):
     ]
 
     for mod in modules_to_patch:
-        monkeypatch.setattr(f"{mod}.get_supabase", lambda: mock_supabase, raising=False)
+        monkeypatch.setattr(f"{mod}.get_database", lambda: mock_database, raising=False)
         monkeypatch.setattr(f"{mod}.get_user_id", mock_get_user_id, raising=False)
 
     return TestClient(app)

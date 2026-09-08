@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.routes import auth, users, projects, applications, requests, teams, matches
+from app.api.routes import users, projects, applications, requests, teams, matches
 
 app = FastAPI(title="Nexora API", version="1.0.0")
 
@@ -13,7 +13,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(projects.router, prefix="/api")
 app.include_router(applications.router, prefix="/api")
