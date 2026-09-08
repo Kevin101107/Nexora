@@ -83,24 +83,6 @@
   @apply rounded-full px-6 py-3.5 text-[15px] font-semibold;
 }
 
-/* ProseMirror / Tiptap */
-.ProseMirror { @apply outline-none min-h-[200px]; }
-.ProseMirror > * + * { margin-top: 0.5rem; }
-.ProseMirror p { @apply leading-relaxed; }
-.ProseMirror h2 { @apply text-lg font-bold mt-4 mb-1; }
-.ProseMirror h3 { @apply text-base font-semibold mt-3 mb-1; }
-.ProseMirror ul { @apply list-disc pl-5; }
-.ProseMirror ol { @apply list-decimal pl-5; }
-.ProseMirror blockquote {
-  @apply border-l-2 border-primary/40 pl-3 italic text-gray-500 dark:text-white/40 my-2;
-}
-.ProseMirror code {
-  @apply bg-primary/10 dark:bg-primary/20 text-primary font-mono text-[0.85em] px-1.5 py-0.5 rounded;
-}
-.ProseMirror p.is-editor-empty:first-child::before {
-  content: attr(data-placeholder);
-  @apply text-gray-300 dark:text-white/20 float-left h-0 pointer-events-none;
-}
 
 /* ── Login page premium animations ───────────────────────── */
 

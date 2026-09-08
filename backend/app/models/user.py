@@ -7,16 +7,22 @@ class UserProfile(BaseModel):
     email: str
     display_name: str | None = None
     avatar_url: str | None = None
-    xp: int = 0
-    level: int = 1
-    streak: int = 0
-    badges: List[str] = []
-    favourite_subjects: List[str] = []
-    daily_goal_minutes: int = 60
+    headline: str | None = None
+    bio: str | None = None
+    skills: List[str] = []
+    roles: List[str] = []
+    github_url: str | None = None
+    linkedin_url: str | None = None
+    availability: str | None = "open"
 
 
 class UserUpdate(BaseModel):
     display_name: str | None = None
     avatar_url: str | None = None
-    favourite_subjects: List[str] | None = None
-    daily_goal_minutes: int | None = None
+    headline: str | None = None
+    bio: str | None = None
+    skills: List[str] | None = None
+    roles: List[str] | None = None
+    github_url: str | None = None
+    linkedin_url: str | None = None
+    availability: str | None = None

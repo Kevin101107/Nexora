@@ -3,20 +3,20 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard, FileText, Timer, Sparkles, Layers, User, LogOut, Sun, Moon,
-  ChevronLeft, ChevronRight, Trophy
+  LayoutDashboard, Compass, FolderGit2, Users, Inbox, User, LogOut, Sun, Moon,
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { createApiClient } from "@/lib/api";
 import { useEffect, useState } from "react";
 
 const NAV = [
-  { href: "/dashboard",   label: "Dashboard",  icon: LayoutDashboard },
-  { href: "/notes",       label: "Notes",      icon: FileText },
-  { href: "/focus",       label: "Focus",      icon: Timer },
-  { href: "/ai",          label: "AI Tutor",   icon: Sparkles },
-  { href: "/flashcards",  icon: Layers,        label: "Flashcards" },
-  { href: "/profile",     label: "Profile",    icon: User },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/discover",  label: "Discover",  icon: Compass },
+  { href: "/projects",  label: "Projects",  icon: FolderGit2 },
+  { href: "/teams",     label: "Teams",     icon: Users },
+  { href: "/requests",  label: "Requests",  icon: Inbox },
+  { href: "/profile",   label: "Profile",   icon: User },
 ];
 
 export default function Sidebar() {
@@ -134,9 +134,8 @@ export default function Sidebar() {
                   <p className="text-xs font-black text-gray-900 dark:text-white truncate">
                     {profile.display_name || profile.email.split("@")[0]}
                   </p>
-                  <p className="text-[10px] text-gray-700 dark:text-white/40 font-bold flex items-center gap-1 mt-0.5">
-                    <Trophy size={9} className="text-yellow-500" />
-                    Level {profile.level ?? 1} • {profile.xp ?? 0} XP
+                  <p className="text-[10px] text-gray-500 dark:text-white/40 font-medium truncate mt-0.5">
+                    {profile.headline || (profile.roles && profile.roles.length > 0 ? profile.roles[0] : "Student Builder")}
                   </p>
                 </div>
               )}

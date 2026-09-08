@@ -4,26 +4,24 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { createApiClient } from "@/lib/api";
 import { useToast } from "@/components/Toast";
-import { Flame, Award, Zap, Loader2 } from "lucide-react";
+import { User, Loader2, Save, ShieldCheck, Mail, Sparkles } from "lucide-react";
 
-const BADGE_META: Record<string, { label: string; icon: string }> = {
-  first_note:       { label: "First Note",      icon: "📝" },
-  streak_3:         { label: "3-Day Streak",     icon: "🔥" },
-  streak_7:         { label: "7-Day Streak",     icon: "🔥" },
-  streak_30:        { label: "30-Day Streak",    icon: "💯" },
-  level_5:          { label: "Level 5",          icon: "⭐" },
-  level_10:         { label: "Level 10",         icon: "🌟" },
-  focus_60:         { label: "60-Min Focus",     icon: "⏱️" },
-  flashcard_master: { label: "Flashcard Master", icon: "🃏" },
-};
-const SUBJECTS = ["Math", "Physics", "Chemistry", "Biology", "History", "English", "Computer Science", "Other"];
+interface ProfileData {
+  id: string;
+  email: string;
+  display_name?: string | null;
+  headline?: string | null;
+  bio?: string | null;
+  skills?: string[];
+  roles?: string[];
+  availability?: string | null;
+}
 
 export default function ProfilePage() {
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
-  const [subjects, setSubjects] = useState<string[]>([]);
-  const [goalMinutes, setGoalMinutes] = useState(60);
+  const [headline, setHeadline] = useState("");
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
@@ -31,15 +29,16 @@ export default function ProfilePage() {
     async function loadProfile() {
       setLoading(true);
       const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (session) {
         const api = createApiClient(session.access_token);
-        const p = await api.get<any>("/users/me").catch(() => null);
+        const p = await api.get<ProfileData>("/users/me").catch(() => null);
         if (p) {
           setProfile(p);
           setName(p.display_name || "");
-          setSubjects(p.favourite_subjects || []);
-          setGoalMinutes(p.daily_goal_minutes || 60);
+          setHeadline(p.headline || "");
         }
       }
       setLoading(false);
@@ -51,145 +50,140 @@ export default function ProfilePage() {
     setSaving(true);
     try {
       const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) {
         toast("Not authenticated", "error");
         setSaving(false);
         return;
       }
       const api = createApiClient(session.access_token);
-      const sanitizedGoal = Math.min(480, Math.max(15, goalMinutes || 60));
-      const updated = await api.put<any>("/users/me", {
+      const updated = await api.put<ProfileData>("/users/me", {
         display_name: name.trim() || null,
-        favourite_subjects: subjects,
-        daily_goal_minutes: sanitizedGoal,
+        headline: headline.trim() || null,
       });
       if (updated) {
-        setProfile((prev: any) => ({ ...prev, ...updated }));
+        setProfile((prev) => (prev ? { ...prev, ...updated } : updated));
       }
-      toast("Profile saved");
+      toast("Profile updated successfully!");
     } catch (err: any) {
-      toast(err?.message || "Failed to save", "error");
+      toast(err?.message || "Failed to save profile", "error");
     } finally {
       setSaving(false);
     }
   }
 
-  const xpProgress = profile ? Math.min(100, Math.max(0, profile.xp % 100)) : 0;
-
   if (loading) {
     return (
-      <div className="max-w-2xl flex items-center justify-center py-20">
+      <div className="max-w-2xl mx-auto flex items-center justify-center py-20">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
+  const nameInitial = name
+    ? name.charAt(0).toUpperCase()
+    : profile?.email
+    ? profile.email.charAt(0).toUpperCase()
+    : "B";
+
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6 pb-12">
       <div>
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">Profile</h1>
-        <p className="text-sm text-gray-400 dark:text-white/30 mt-0.5">{profile?.email || "No email"}</p>
+        <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
+          Builder Profile
+        </h1>
+        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+          Your profile helps potential teammates understand your technical skills and background.
+        </p>
       </div>
 
-      <div className="card">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 dark:bg-primary/15 flex items-center justify-center text-2xl font-black text-primary">
-            {profile?.level ?? 1}
-          </div>
-          <div>
-            <p className="font-semibold text-gray-900 dark:text-white">Level {profile?.level ?? 1}</p>
-            <p className="text-sm text-gray-400 dark:text-white/30">{profile?.xp ?? 0} XP total</p>
-          </div>
+      {/* Profile Card Header */}
+      <div className="card !p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5">
+        <div className="w-20 h-20 rounded-3xl bg-primary/15 text-primary flex items-center justify-center text-3xl font-black shrink-0">
+          {nameInitial}
         </div>
-        <div className="flex items-center justify-between text-xs text-gray-400 dark:text-white/30 mb-1.5">
-          <span>Level {profile?.level ?? 1}</span>
-          <span>{xpProgress}/100 XP</span>
-          <span>Level {(profile?.level ?? 1) + 1}</span>
-        </div>
-        <div className="h-1.5 bg-gray-100 dark:bg-white/[0.07] rounded-full overflow-hidden">
-          <div className="h-full bg-primary rounded-full transition-all duration-700" style={{ width: `${xpProgress}%` }} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: "Streak",  value: profile?.streak ?? 0, icon: Flame,  color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-500/10" },
-          { label: "Badges",  value: (profile?.badges ?? []).length, icon: Award, color: "text-yellow-500", bg: "bg-yellow-50 dark:bg-yellow-500/10" },
-          { label: "XP",      value: profile?.xp ?? 0, icon: Zap,   color: "text-primary", bg: "bg-primary/10 dark:bg-primary/15" },
-        ].map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} className="card text-center py-4">
-            <div className={`w-8 h-8 rounded-xl ${bg} flex items-center justify-center mx-auto mb-2`}>
-              <Icon size={15} className={color} />
+        <div className="text-center sm:text-left flex-1 min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                {name || "Student Builder"}
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center sm:justify-start gap-1 mt-0.5">
+                <Mail size={12} /> {profile?.email}
+              </p>
             </div>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">{value}</p>
-            <p className="text-xs text-gray-400 dark:text-white/30">{label}</p>
+            <span className="self-center sm:self-start text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
+              Open to Teams
+            </span>
           </div>
-        ))}
-      </div>
-
-      <div className="card">
-        <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Badges & Achievements</h2>
-        <div className="flex flex-wrap gap-2">
-          {Object.entries(BADGE_META).map(([key, meta]) => {
-            const unlocked = profile?.badges?.includes(key);
-            return (
-              <span
-                key={key}
-                className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${
-                  unlocked
-                    ? "bg-primary/10 dark:bg-primary/15 text-primary border-primary/20"
-                    : "bg-gray-50 dark:bg-white/[0.02] text-gray-400 dark:text-white/20 border-dashed border-gray-200 dark:border-white/[0.05] opacity-50"
-                }`}
-                title={unlocked ? "Unlocked!" : "Locked"}
-              >
-                <span>{meta.icon}</span>
-                <span>{meta.label}</span>
-              </span>
-            );
-          })}
+          <p className="text-xs text-gray-600 dark:text-gray-300 mt-2 font-medium">
+            {headline || "No headline set yet. Tell teammates what you build!"}
+          </p>
         </div>
       </div>
 
-      <div className="card space-y-4">
-        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Settings</h2>
+      {/* Basic Profile Form */}
+      <div className="card !p-6 space-y-4">
+        <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+          Edit Profile Information
+        </h3>
+
         <div>
-          <label className="label">Display name</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} className="input-field" placeholder="Your name" />
-        </div>
-        <div>
-          <label className="label">Daily focus goal (minutes)</label>
+          <label className="label">Display Name</label>
           <input
-            type="number"
-            min={15}
-            max={480}
-            value={goalMinutes}
-            onChange={(e) => setGoalMinutes(Number(e.target.value))}
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             className="input-field"
+            placeholder="e.g. Alex Chen"
           />
         </div>
+
         <div>
-          <label className="label">Favourite subjects</label>
-          <div className="flex flex-wrap gap-2 mt-1">
-            {SUBJECTS.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setSubjects((p) => p.includes(s) ? p.filter((x) => x !== s) : [...p, s])}
-                className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
-                  subjects.includes(s)
-                    ? "bg-primary text-white border-primary"
-                    : "border-gray-200 dark:border-white/[0.1] text-gray-500 dark:text-white/40 hover:border-primary/40"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
+          <label className="label">Role / Headline</label>
+          <input
+            type="text"
+            value={headline}
+            onChange={(e) => setHeadline(e.target.value)}
+            className="input-field"
+            placeholder="e.g. Full-Stack Developer | React & FastAPI"
+          />
+          <p className="text-[11px] text-gray-400 mt-1">
+            A short one-liner shown on teammate discover cards.
+          </p>
         </div>
-        <button onClick={save} disabled={saving} className="btn-primary w-full justify-center">
-          {saving ? "Saving…" : "Save changes"}
-        </button>
+
+        <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04]">
+          <p className="text-xs font-bold text-gray-900 dark:text-white">
+            Looking for structured skill tags & portfolio links?
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
+            The full structured builder profile editor (verified GitHub repos, tech stack tags, role preferences, and hackathon history) is coming in Phase 2.
+          </p>
+        </div>
+
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving}
+            className="btn-primary w-full justify-center text-sm font-bold"
+          >
+            {saving ? (
+              <span className="flex items-center gap-2">
+                <Loader2 size={16} className="animate-spin" />
+                Saving...
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <Save size={16} />
+                Save Profile
+              </span>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

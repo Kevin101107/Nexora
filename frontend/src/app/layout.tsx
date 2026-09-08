@@ -3,8 +3,9 @@ import "../styles/globals.css";
 import { ToastProvider } from "@/components/Toast";
 
 export const metadata: Metadata = {
-  title: "Nexora — Student Productivity",
-  description: "AI-powered productivity app for students",
+  title: "Nexora — Find the right people to build with",
+  description:
+    "Student teammate-discovery and project-collaboration platform. Connect with compatible student builders, find project members, and form hackathon teams.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

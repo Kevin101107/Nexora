@@ -1,43 +1,32 @@
-# Nexora — Student Productivity Platform 🚀
+# Nexora — Find the right people to build with 🚀
 
 [![Next.js](https://img.shields.io/badge/Next.js-14.2-black?logo=next.js)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase)](https://supabase.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?logo=typescript)](https://www.typescriptlang.org/)
-[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python)](https://www.python.org/)
 
-**Nexora** is an all-in-one AI-powered student productivity web application designed to help students organize notes, track focus sessions, generate flashcards, chat with an AI study tutor, and build daily learning habits through gamification.
+**Nexora** is a web-first, mobile-ready student teammate-discovery and project-collaboration platform. It helps student developers, designers, and creators connect with compatible partners, recruit contributors for side projects, and form multidisciplinary squads for hackathons.
 
 ---
 
-## 🌟 Key Features
+## 🌟 Key Value Pillars
 
-### 📝 Smart Notes
-- **Rich Text Editor**: Powered by TipTap for intuitive formatting, headings, bullet points, and code blocks.
-- **Organization & Search**: Tag notes by subjects (`Math`, `Physics`, `Computer Science`, etc.) and search across all content seamlessly.
-- **AI Note Summarization**: One-click AI summarization to extract key concepts instantly.
+### 🔍 Teammate Discovery
+- **Builder Search**: Search students by technical stack (React, FastAPI, Go, PyTorch, Figma, etc.), preferred role, and university.
+- **Explainable Compatibility**: Match Score V1 provides deterministic, transparent compatibility scoring based on skill complementarity and shared hackathon goals—no black-box promises.
 
-### ⏱️ Focus Sessions & Pomodoro
-- **Custom Timer**: Configurable focus sessions (25-min Pomodoro, custom countdowns) with live audio/visual cues.
-- **Session Tracking**: Logs study duration per subject and calculates progress toward daily focus goals.
+### 📁 Project Recruitment
+- **Post Opportunities**: Create project listings with project tags, descriptions, team size limits, and needed roles.
+- **Join Applications**: Apply to open roles with custom introductory messages and track application status.
 
-### 🤖 AI Study Tutor
-- **Interactive Chat**: Ask questions, request explanations, get step-by-step solutions, or generate study quizzes using Claude API.
-- **Streaming Responses**: Real-time Server-Sent Events (SSE) streaming for fast, interactive AI responses.
+### ⚡ Hackathon Squad Formation
+- **Balanced Teams**: Assemble well-rounded teams (Frontend, Backend, Systems, UI/UX, AI/ML) before hackathon deadlines.
+- **Roster Management**: Manage confirmed teammates, active spots, and pending invitations.
 
-### 🃏 Flashcards & Spaced Repetition
-- **Deck Management**: Create custom decks or generate flashcard decks automatically using AI from study material.
-- **Spaced Repetition Engine**: Built-in SuperMemo-2 (SM-2) algorithm to optimize review intervals based on answer confidence.
-
-### 🎮 Gamification & Streaks
-- **XP & Levels**: Earn XP for taking notes, reviewing flashcards, and completing focus sessions.
-- **Daily Streaks**: Automatic daily activity tracking with streak calculation.
-- **Achievement Badges**: Unlock badges such as *First Note*, *7-Day Streak*, *Level 5*, *60-Min Focus*, and *Flashcard Master*.
-
-### 🌓 Modern UI & Personalization
-- **Theme Support**: Complete Light Mode & Dark Mode with modern glassmorphism aesthetics.
-- **Profile & Settings**: Set target daily focus minutes, display name, and favorite subjects.
+### 👤 Builder Profiles
+- **Structured Showcase**: Display verified tech stacks, portfolio links, GitHub profiles, and availability status ("Open to teams", "Looking for hackathon squad", "Busy").
 
 ---
 
@@ -45,20 +34,19 @@
 
 ### Frontend
 - **Framework**: Next.js 14 (App Router, React 18)
-- **Styling**: Tailwind CSS, Lucide Icons, Custom Design Tokens
-- **Editor**: TipTap (`@tiptap/react`, `@tiptap/starter-kit`)
-- **Authentication & Database Client**: `@supabase/ssr`, `@supabase/supabase-js`
+- **Styling**: Tailwind CSS, Lucide Icons, Custom Glassmorphism Tokens
+- **Auth & Sessions**: `@supabase/ssr`, `@supabase/supabase-js`, Next.js Middleware
+- **Theme**: Dark Mode & Light Mode with persistent preference
 
 ### Backend
 - **Framework**: FastAPI (Python 3.11+)
 - **Server**: Uvicorn
-- **AI Integration**: Anthropic Claude SDK (`anthropic`)
-- **Database Client**: Supabase Python SDK (`supabase`)
 - **Validation**: Pydantic v2 & `pydantic-settings`
+- **Database Client**: Supabase Python SDK
 
 ### Database & Auth
 - **Database**: Supabase PostgreSQL with Row Level Security (RLS)
-- **Auth**: Supabase Auth (Email/Password, OAuth, JWT verification)
+- **Auth**: Supabase Auth (Email/Password, Google OAuth, PKCE session exchange)
 
 ---
 
@@ -68,9 +56,19 @@
 Nexora/
 ├── frontend/                   # Next.js App Router Frontend
 │   ├── src/
-│   │   ├── app/                # Page routes (dashboard, notes, focus, ai, flashcards, profile)
-│   │   ├── components/         # Reusable UI components (Sidebar, AppShell, Toast, Editor)
-│   │   ├── lib/                # Supabase client & API client utilities
+│   │   ├── app/                # App Router pages
+│   │   │   ├── page.tsx        # Public marketing landing page
+│   │   │   ├── (auth)/         # Auth pages (login, signup)
+│   │   │   ├── auth/callback/  # PKCE OAuth / OTP callback handler
+│   │   │   ├── dashboard/      # Collaboration dashboard shell
+│   │   │   ├── discover/       # Teammate discovery and skill search
+│   │   │   ├── projects/       # Project exploration and recruitment
+│   │   │   ├── teams/          # Team formation and roster management
+│   │   │   ├── requests/       # Applications and connection requests
+│   │   │   └── profile/        # Authenticated builder profile
+│   │   ├── components/         # Reusable UI components (Sidebar, AppShell, Toast, DarkModeToggle)
+│   │   ├── lib/                # Supabase browser/server clients & API utilities
+│   │   ├── middleware.ts       # Next.js session refresh and route guard
 │   │   └── styles/             # Global CSS and custom styles
 │   ├── package.json
 │   ├── tailwind.config.ts
@@ -78,17 +76,15 @@ Nexora/
 │
 ├── backend/                    # FastAPI Backend API Server
 │   ├── app/
-│   │   ├── api/routes/         # API endpoints (auth, notes, focus, ai, flashcards, users)
+│   │   ├── api/routes/         # API endpoints (auth, users)
 │   │   ├── core/               # Auth verification, Supabase client, configuration
-│   │   ├── models/             # Pydantic request/response schemas
-│   │   └── services/           # Business logic & AI prompt handlers
+│   │   └── models/             # Pydantic request/response schemas (user)
 │   ├── main.py                 # FastAPI application entry point
 │   ├── requirements.txt        # Python dependencies
-│   └── Dockerfile.txt
+│   └── Dockerfile              # Container deployment config
 │
-├── supabase_schema.sql         # Database schema, triggers & RLS policies
-├── render.yaml                 # Deployment config for Render
-└── Dockerfile                  # Container build config
+├── .gitignore                  # Comprehensive root gitignore
+└── README.md                   # Project documentation
 ```
 
 ---
@@ -96,22 +92,13 @@ Nexora/
 ## 🚀 Getting Started
 
 ### Prerequisites
-- **Node.js**: v18.0.0 or higher
+- **Node.js**: v18.0.0 or higher (v20+ recommended)
 - **Python**: v3.11 or higher
-- **Supabase Account**: A free Supabase project
-- **Anthropic API Key**: For AI Tutor features (Claude API)
+- **Supabase Account**: A Supabase project with PostgreSQL and Auth enabled
 
 ---
 
-### 1. Database Setup (Supabase)
-
-1. Go to your [Supabase Dashboard](https://supabase.com/dashboard) and open the **SQL Editor**.
-2. Copy the contents of [`supabase_schema.sql`](file:///d:/Projects/Nexora/supabase_schema.sql) and execute the SQL script.
-3. This creates all necessary tables (`users`, `notes`, `focus_sessions`, `flashcard_decks`, `flashcards`), indices, RLS policies, and user creation triggers.
-
----
-
-### 2. Backend Setup
+### 1. Backend Setup
 
 1. Navigate to the `backend` directory:
    ```bash
@@ -120,23 +107,22 @@ Nexora/
 2. Create and activate a virtual environment:
    ```bash
    python -m venv venv
-   # On Windows:
-   .\venv\Scripts\activate
    # On macOS/Linux:
    source venv/bin/activate
+   # On Windows:
+   .\venv\Scripts\activate
    ```
 3. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-4. Create a `.env` file in the `backend/` directory:
+4. Create a `.env` file in the `backend/` directory based on `.env.example`:
    ```env
    SUPABASE_URL=https://your-supabase-project.supabase.co
    SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
-   ANTHROPIC_API_KEY=your-anthropic-api-key
    FRONTEND_URL=http://localhost:3000
    ```
-5. Start the FastAPI development server:
+5. Start the development server:
    ```bash
    uvicorn main:app --reload --port 8000
    ```
@@ -144,13 +130,13 @@ Nexora/
 
 ---
 
-### 3. Frontend Setup
+### 2. Frontend Setup
 
 1. Open a new terminal and navigate to the `frontend` directory:
    ```bash
    cd frontend
    ```
-2. Install Node.js dependencies:
+2. Install dependencies:
    ```bash
    npm install
    ```
@@ -168,29 +154,22 @@ Nexora/
 
 ---
 
-## 📡 API Endpoints Overview
+## 📡 API Endpoints Overview (Phase 1)
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| **GET** | `/api/users/me` | Fetch user profile, XP, streak & badges |
-| **PUT** | `/api/users/me` | Update display name, goal minutes, and favorite subjects |
-| **GET** | `/api/notes` | Get all notes for authenticated user |
-| **POST** | `/api/notes` | Create a new note |
-| **PUT** | `/api/notes/{id}` | Update an existing note |
-| **DELETE** | `/api/notes/{id}` | Delete a note |
-| **POST** | `/api/focus/sessions` | Log completed focus session |
-| **GET** | `/api/focus/sessions` | Fetch user focus history |
-| **POST** | `/api/ai/chat` | Send message to AI Tutor (supports streaming) |
-| **POST** | `/api/ai/summarize` | Generate note summary |
-| **GET** | `/api/flashcards/decks` | List flashcard decks |
-| **POST** | `/api/flashcards/decks` | Create a new deck |
+| **GET** | `/health` | API health check |
+| **POST** | `/api/auth/verify-token` | Verify Supabase JWT token |
+| **GET** | `/api/users/me` | Fetch authenticated user builder profile |
+| **PUT** | `/api/users/me` | Update builder profile details (display name, headline) |
 
 ---
 
-## ☁️ Deployment
+## 🗓️ Product Roadmap
 
-- **Frontend**: Easily deployed on **Vercel** by setting environment variables (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_API_URL`).
-- **Backend**: Pre-configured for **Render** via `render.yaml` or any Docker container hosting platform using `Dockerfile`.
+- **Phase 1 (Complete)**: Product pivot to teammate-discovery & project-collaboration platform. Obsolete productivity modules removed; clean navigation, public marketing page, auth screens, collaboration dashboard, and responsive placeholder pages introduced.
+- **Phase 2 (Upcoming)**: Database schema migration (projects, project_members, project_applications, teammate_requests), structured builder profile editor with verified skills, and project creation flow.
+- **Phase 3**: Explainable Match Score V1 engine, notifications, and real-time request accept/decline workflows.
 
 ---
 

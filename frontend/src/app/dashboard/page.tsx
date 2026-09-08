@@ -1,495 +1,405 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import { createApiClient } from "@/lib/api";
-import Link from "next/link";
 import {
-  FileText, Timer, Sparkles, Layers, TrendingUp, Flame,
-  Star, ArrowRight, Trophy, Clock, Calendar, CheckCircle,
-  Lightbulb, Brain, ChevronRight
+  Users,
+  FolderGit2,
+  Inbox,
+  ArrowRight,
+  Plus,
+  Compass,
+  Sparkles,
+  CheckCircle2,
+  Clock,
+  Code2,
+  Layers,
+  ChevronRight,
 } from "lucide-react";
 
-interface Stats {
-  notes: number;
-  focusSessions: number;
-  focusMinutes: number;
-  streak: number;
-  xp: number;
-  level: number;
-}
-
-interface RecentSession {
+interface UserProfile {
   id: string;
-  duration_minutes: number;
-  mode: string;
-  subject: string | null;
-  created_at: string;
-}
-
-const QUOTES = [
-  "The secret of getting ahead is getting started.",
-  "Don't watch the clock; do what it does. Keep going.",
-  "Great things never come from comfort zones.",
-  "Success doesn't just find you. You have to go out and get it.",
-  "Believe you can and you're halfway there.",
-];
-
-// Helper to determine greeting icon
-function getGreetingInfo() {
-  const hrs = new Date().getHours();
-  if (hrs < 12) return { text: "Good morning", icon: "☀️" };
-  if (hrs < 17) return { text: "Good afternoon", icon: "🌤️" };
-  return { text: "Good evening", icon: "🌙" };
+  email: string;
+  display_name?: string | null;
+  headline?: string | null;
+  skills?: string[];
+  roles?: string[];
+  availability?: string | null;
 }
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<Stats>({ notes: 0, focusSessions: 0, focusMinutes: 0, streak: 0, xp: 0, level: 1 });
-  const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
-  const [latestNoteTitle, setLatestNoteTitle] = useState<string | null>(null);
-  const [name, setName] = useState("");
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // States for animated numbers
-  const [displayXp, setDisplayXp] = useState(0);
-  const [displayMinutes, setDisplayMinutes] = useState(0);
-
   useEffect(() => {
-    (async () => {
+    async function loadData() {
       const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setLoading(false); return; }
-      const api = createApiClient(session.access_token);
-
-      try {
-        const [profile, sessions] = await Promise.all([
-          api.get<any>("/users/me").catch(() => null),
-          api.get<RecentSession[]>("/focus/sessions").catch(() => []),
-        ]);
-
-        const notesRes = await supabase.from("notes").select("title, created_at").eq("user_id", session.user.id).order("created_at", { ascending: false });
-        
-        setName(profile?.display_name || session.user.email?.split("@")[0] || "Student");
-        
-        const finalStats = {
-          notes: notesRes.data?.length ?? 0,
-          focusSessions: sessions?.length ?? 0,
-          focusMinutes: sessions?.reduce((s: number, x: any) => s + (x.duration_minutes || 0), 0) ?? 0,
-          streak: profile?.streak ?? 0,
-          xp: profile?.xp ?? 0,
-          level: profile?.level ?? 1,
-        };
-
-        if (notesRes.data && notesRes.data.length > 0) {
-          setLatestNoteTitle(notesRes.data[0].title);
-        }
-
-        setStats(finalStats);
-        setRecentSessions(sessions.slice(0, 4));
-
-        // Animate XP
-        let currentXp = 0;
-        const xpStep = Math.max(1, Math.floor(finalStats.xp / 40));
-        const xpInterval = setInterval(() => {
-          currentXp += xpStep;
-          if (currentXp >= finalStats.xp) {
-            setDisplayXp(finalStats.xp);
-            clearInterval(xpInterval);
-          } else {
-            setDisplayXp(currentXp);
-          }
-        }, 20);
-
-        // Animate Minutes
-        let currentMins = 0;
-        const minsStep = Math.max(1, Math.floor(finalStats.focusMinutes / 40));
-        const minsInterval = setInterval(() => {
-          currentMins += minsStep;
-          if (currentMins >= finalStats.focusMinutes) {
-            setDisplayMinutes(finalStats.focusMinutes);
-            clearInterval(minsInterval);
-          } else {
-            setDisplayMinutes(currentMins);
-          }
-        }, 20);
-
-      } finally {
-        setLoading(false);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session) {
+        const api = createApiClient(session.access_token);
+        const p = await api.get<UserProfile>("/users/me").catch(() => null);
+        if (p) setProfile(p);
       }
-    })();
+      setLoading(false);
+    }
+    loadData();
   }, []);
 
-  const { text: greetingText, icon: greetingIcon } = getGreetingInfo();
-  const quote = QUOTES[new Date().getDay() % QUOTES.length];
-  const xpProgress = stats.xp % 100;
-  
-  // Daily target configurations
-  const focusGoalMinutes = 180; // 3 hours daily goal
-  const focusProgressPercent = Math.min(100, Math.round((stats.focusMinutes / focusGoalMinutes) * 100));
-
-  // Circular progress ring helper values
-  const strokeRadius = 15;
-  const strokeCircumference = 2 * Math.PI * strokeRadius;
-  const strokeDashoffset = strokeCircumference - (focusProgressPercent / 100) * strokeCircumference;
-
-  // Mock GitHub-Style consistency density map (4 weeks = 28 boxes)
-  // We code-color them by mock density based on streak
-  const studyBoxes = Array.from({ length: 28 }).map((_, i) => {
-    let level = 0; // 0=none, 1=light, 2=medium, 3=deep study density
-    if (i % 5 === 0) level = 1;
-    if (i % 7 === 0) level = 2;
-    if (i % 11 === 0) level = 3;
-    // Highlight last i matching active streak
-    if (i >= 28 - Math.max(1, stats.streak)) {
-      level = Math.min(3, Math.max(1, (i % 3) + 1));
-    }
-    return { level };
-  });
+  const displayName = profile?.display_name || profile?.email?.split("@")[0] || "Builder";
 
   return (
-    <div className="w-full space-y-6 animate-fade-up max-w-7xl px-2">
-      
-      {/* ── Top Header Section (Split Grid Layout) ────────── */}
-      <div className="grid gap-5 lg:grid-cols-[1.4fr_0.6fr]">
-        {/* Left Side: Welcomer Banner */}
-        <section className="card bg-gradient-to-br from-[#f8f6f0] to-[#f2eee4] dark:from-[#131326] dark:to-[#0d0d1c] border border-gray-200/50 dark:border-white/[0.04] p-6 sm:p-8 rounded-3xl relative overflow-hidden flex flex-col justify-between min-h-[220px]">
-          <div className="absolute -right-20 -top-20 w-60 h-60 rounded-full bg-primary/10 blur-3xl" />
-          
-          <div className="relative z-10 flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">{greetingIcon}</span>
-              <div className="inline-flex w-fit items-center rounded-full border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] px-4.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.22em] text-gray-700 dark:text-white/60">
-                Study Command Center
-              </div>
-            </div>
-            <h1 className="font-display text-[2.75rem] leading-[0.92] text-gray-900 dark:text-white sm:text-5xl font-black">
-              {greetingText}, {name || "Student"}
-            </h1>
-            <p className="max-w-2xl text-sm text-gray-700 dark:text-white/60 leading-relaxed font-semibold italic">
-              &ldquo;{quote}&rdquo;
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 pt-4 relative z-10">
-            <Link href="/focus" className="btn-primary pill-cta hover:scale-[1.02] hover:-translate-y-0.5 transition-all text-xs">
-              Start Focus Session
-              <ArrowRight size={14} />
-            </Link>
-            <Link href="/ai" className="btn-outline pill-cta bg-white/80 dark:bg-white/[0.04] hover:bg-white dark:hover:bg-white/[0.08] hover:scale-[1.02] hover:-translate-y-0.5 transition-all text-xs">
-              Ask AI Tutor
-            </Link>
-          </div>
-        </section>
-
-        {/* Right Side: Proactive AI Coach & Goals widget */}
-        <section className="card bg-gradient-to-br from-primary/10 to-violet-500/10 border border-primary/20 dark:border-primary/10 p-6 rounded-3xl flex flex-col justify-between relative overflow-hidden min-h-[220px]">
-          <div className="absolute right-0 bottom-0 w-32 h-32 rounded-full bg-primary/20 blur-2xl" />
-          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider">
-            <Sparkles size={14} className="text-primary animate-pulse" />
-            AI Study Coach
-          </div>
+    <div className="max-w-6xl mx-auto space-y-8 pb-12">
+      {/* ── Welcome Header ────────────────────────────────────── */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-primary/15 via-primary/5 to-transparent border border-primary/20 p-6 sm:p-8 backdrop-blur-xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div>
-            <h3 className="text-sm font-black text-gray-900 dark:text-white mb-1.5 mt-2">Next Suggested Task</h3>
-            <p className="text-xs text-gray-750 dark:text-white/70 leading-relaxed font-semibold">
-              &ldquo;You haven&apos;t practiced your Chemistry Flashcards today. Reviewing them now will help lock in your memory streak.&rdquo;
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20 mb-3">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Phase 1 Collaboration Beta</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight">
+              Welcome back, {displayName} 👋
+            </h1>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300 max-w-xl leading-relaxed">
+              Discover compatible teammates, recruit members for your projects, and form squads for upcoming hackathons.
             </p>
           </div>
-          <div className="flex items-center justify-between pt-4 border-t border-primary/20 mt-3">
-            <div className="text-[10px] font-bold text-primary tracking-wide">
-              Estimated Completion: <span className="underline">12 minutes</span>
+
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <Link
+              href="/discover"
+              className="btn-primary text-xs sm:text-sm !py-2.5 !px-4"
+            >
+              <Compass size={16} />
+              <span>Find Teammates</span>
+            </Link>
+            <Link
+              href="/projects"
+              className="btn-outline text-xs sm:text-sm !py-2.5 !px-4"
+            >
+              <Plus size={16} />
+              <span>Explore Projects</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Quick Stats / Overview ────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="card !p-5">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              Teammate Matches
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+              <Users size={16} />
             </div>
-            <Link href="/flashcards" className="inline-flex items-center gap-1 text-xs font-black text-primary hover:underline">
-              Practice now
+          </div>
+          <p className="text-2xl font-black text-gray-900 dark:text-white">12</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">With complementary skills</p>
+        </div>
+
+        <div className="card !p-5">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              Open Projects
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+              <FolderGit2 size={16} />
+            </div>
+          </div>
+          <p className="text-2xl font-black text-gray-900 dark:text-white">8</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Recruiting student builders</p>
+        </div>
+
+        <div className="card !p-5">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              Pending Requests
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+              <Inbox size={16} />
+            </div>
+          </div>
+          <p className="text-2xl font-black text-gray-900 dark:text-white">2</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Incoming invitations</p>
+        </div>
+
+        <div className="card !p-5">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              Profile Status
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+              <CheckCircle2 size={16} />
+            </div>
+          </div>
+          <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 capitalize">
+            {profile?.availability || "Active"}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Open for collaborations</p>
+        </div>
+      </div>
+
+      {/* ── Main Content Grid: Teammates & Requests ──────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left 2 Cols: Recommended Teammates */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Recommended Teammates</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Explainable matches based on complementary technical skills and availability
+              </p>
+            </div>
+            <Link
+              href="/discover"
+              className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+            >
+              <span>View all</span>
               <ChevronRight size={14} />
             </Link>
           </div>
-        </section>
-      </div>
 
-      {/* ── Visual Variety Stats Cards Grid ──────────────── */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {/* Notes stats card */}
-        <div className="card border border-gray-200/50 dark:border-white/[0.04] p-5 hover:-translate-y-1 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 flex flex-col justify-between h-[125px]">
-          <div className="flex justify-between items-start">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
-              <FileText size={17} className="text-blue-500" />
-            </div>
-            <span className="text-2xl font-black text-gray-900 dark:text-white">{stats.notes}</span>
-          </div>
-          <div>
-            <p className="text-xs font-bold text-gray-900 dark:text-white truncate">Notes Created</p>
-            <p className="text-[10px] text-gray-700 dark:text-white/40 font-bold truncate mt-0.5">
-              {latestNoteTitle ? `Latest: ${latestNoteTitle}` : "No notes created yet"}
-            </p>
-          </div>
-        </div>
-
-        {/* Focus sessions stats card */}
-        <div className="card border border-gray-200/50 dark:border-white/[0.04] p-5 hover:-translate-y-1 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 flex flex-col justify-between h-[125px]">
-          <div className="flex justify-between items-start">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center">
-              <Timer size={17} className="text-emerald-500" />
-            </div>
-            <span className="text-2xl font-black text-gray-900 dark:text-white">{stats.focusSessions}</span>
-          </div>
-          <div>
-            <p className="text-xs font-bold text-gray-900 dark:text-white truncate">Focus Sessions</p>
-            <p className="text-[10px] text-gray-700 dark:text-white/40 font-bold truncate mt-0.5">
-              {stats.focusSessions > 0 ? "Daily goal in progress" : "No sessions completed today"}
-            </p>
-          </div>
-        </div>
-
-        {/* Focus hours stats card with circular progress ring */}
-        <div className="card border border-gray-200/50 dark:border-white/[0.04] p-5 hover:-translate-y-1 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 flex justify-between items-center h-[125px] cursor-default">
-          <div className="flex flex-col justify-between h-full py-0.5">
-            <div className="w-9 h-9 rounded-xl bg-violet-50 dark:bg-violet-500/10 flex items-center justify-center">
-              <Clock size={17} className="text-violet-500" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-gray-900 dark:text-white truncate">Total Focus Time</p>
-              <p className="text-[10px] text-gray-700 dark:text-white/40 font-bold truncate mt-0.5">
-                {displayMinutes}m / {focusGoalMinutes}m target
-              </p>
-            </div>
-          </div>
-          <div className="relative w-12 h-12 flex items-center justify-center">
-            <svg className="w-full h-full transform -rotate-90">
-              <circle cx="24" cy="24" r={strokeRadius} strokeWidth="3.5" stroke="currentColor" className="text-gray-100 dark:text-white/[0.04]" fill="transparent" />
-              <circle cx="24" cy="24" r={strokeRadius} strokeWidth="3.5" stroke="currentColor" className="text-violet-500 transition-all duration-700" fill="transparent"
-                strokeDasharray={strokeCircumference}
-                strokeDashoffset={loading ? strokeCircumference : strokeDashoffset}
-              />
-            </svg>
-            <span className="absolute text-[10px] font-black text-gray-900 dark:text-white">{focusProgressPercent}%</span>
-          </div>
-        </div>
-
-        {/* Day streak stats card with flame pulse */}
-        <div className="card border border-gray-200/50 dark:border-white/[0.04] p-5 hover:-translate-y-1 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 flex flex-col justify-between h-[125px]">
-          <div className="flex justify-between items-start">
-            <div className="w-9 h-9 rounded-xl bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center">
-              <Flame size={17} className="text-orange-500 animate-pulse" />
-            </div>
-            <span className="text-2xl font-black text-orange-500 animate-pulse">🔥 {stats.streak}</span>
-          </div>
-          <div>
-            <p className="text-xs font-bold text-gray-900 dark:text-white truncate">Active Streak</p>
-            <p className="text-[10px] text-gray-700 dark:text-white/40 font-bold truncate mt-0.5">
-              {stats.streak > 0 ? "You're keeping the fire hot!" : "Log in tomorrow to build streak"}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Middle Layout: Progress, Charts, Consistency ────── */}
-      <div className="grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
-        
-        {/* Left Side: Level Progress & SVG Charts */}
-        <div className="space-y-6">
-          {/* Level Progress Widget */}
-          <div className="card border border-gray-200/50 dark:border-white/[0.04] p-6 hover:shadow-md transition-all">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 dark:bg-primary/20">
-                  <Trophy size={18} className="text-primary animate-bounce" />
+          <div className="space-y-3">
+            {/* Teammate Card 1 */}
+            <div className="card !p-4 sm:!p-5 hover:border-primary/30 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-violet-500/15 text-violet-600 dark:text-violet-400 font-bold flex items-center justify-center text-sm shrink-0">
+                  AR
                 </div>
                 <div>
-                  <p className="text-base font-black text-gray-900 dark:text-white">Level {stats.level}</p>
-                  <p className="text-xs font-bold text-gray-700 dark:text-white/50">{loading ? "—" : `${displayXp} XP`} total accumulated</p>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-sm text-gray-900 dark:text-white">Aarav Rao</h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                      95% Match
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Backend / Systems • Computer Science &apos;26
+                  </p>
+                  <p className="text-[11px] text-gray-600 dark:text-gray-300 mt-1.5 font-medium">
+                    Complementary stack: Docker, Go, Redis • Looking for Frontend / Fullstack partner
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/[0.06] font-medium">
+                      Go
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/[0.06] font-medium">
+                      FastAPI
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/[0.06] font-medium">
+                      Docker
+                    </span>
+                  </div>
                 </div>
               </div>
-              <span className="text-xs font-bold text-gray-700 dark:text-white/50">{xpProgress}/100 to level {stats.level + 1}</span>
-            </div>
-            <div className="h-2.5 bg-gray-100 dark:bg-white/[0.07] rounded-full overflow-hidden">
-              <div className="h-full bg-primary rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(108,99,255,0.4)]" style={{ width: `${xpProgress}%` }} />
-            </div>
-          </div>
 
-          {/* SVG Weekly Focus Chart */}
-          <div className="card border border-gray-200/50 dark:border-white/[0.04] p-6">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h3 className="text-sm font-black text-gray-900 dark:text-white">Weekly Focus Analysis</h3>
-                <p className="text-[10px] text-gray-700 dark:text-white/40 font-bold mt-0.5">Focus hours distribution by weekday</p>
-              </div>
-              <div className="flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-white/60">
-                <span className="w-2.5 h-2.5 rounded bg-primary" />
-                Study hours
+              <div className="shrink-0 sm:text-right">
+                <Link
+                  href="/discover"
+                  className="btn-outline !py-1.5 !px-3 text-xs w-full sm:w-auto"
+                >
+                  Connect
+                </Link>
               </div>
             </div>
 
-            {/* Custom Interactive SVG Chart */}
-            <div className="relative w-full h-[180px] mt-4 flex items-end">
-              <svg className="w-full h-[160px] overflow-visible">
-                {/* SVG definitions for gradient fill */}
-                <defs>
-                  <linearGradient id="chartGlow" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#6C63FF" stopOpacity="0.25" />
-                    <stop offset="100%" stopColor="#6C63FF" stopOpacity="0.0" />
-                  </linearGradient>
-                </defs>
+            {/* Teammate Card 2 */}
+            <div className="card !p-4 sm:!p-5 hover:border-primary/30 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 font-bold flex items-center justify-center text-sm shrink-0">
+                  SK
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-sm text-gray-900 dark:text-white">Sneha Kapoor</h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      91% Match
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Product Designer & UI Engineer • Design &apos;27
+                  </p>
+                  <p className="text-[11px] text-gray-600 dark:text-gray-300 mt-1.5 font-medium">
+                    Complementary stack: Figma, Tailwind, Next.js • Preparing for Fall Hackathon
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/[0.06] font-medium">
+                      UI/UX
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/[0.06] font-medium">
+                      Figma
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/[0.06] font-medium">
+                      Tailwind
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-                {/* Horizontal grid lines */}
-                {[0, 25, 50, 75, 100].map((percent, idx) => (
-                  <line key={idx} x1="0" y1={percent} x2="100%" y2={percent} stroke="currentColor" className="text-gray-100 dark:text-white/[0.03]" strokeWidth="1" />
-                ))}
-
-                {/* Simulated Chart Bars (dynamic widths) */}
-                {[
-                  { day: "Mon", hrs: 2.2, val: 55 },
-                  { day: "Tue", hrs: 3.5, val: 80 },
-                  { day: "Wed", hrs: 1.0, val: 30 },
-                  { day: "Thu", hrs: 0.0, val: 0  },
-                  { day: "Fri", hrs: 2.8, val: 65 },
-                  { day: "Sat", hrs: 4.1, val: 95 },
-                  { day: "Sun", hrs: 1.5, val: 40 },
-                ].map((item, idx) => {
-                  const barWidth = 32;
-                  const xPos = `${idx * 14.28 + 4.5}%`;
-                  const barHeight = loading ? 0 : item.val;
-
-                  return (
-                    <g key={idx}>
-                      {/* Bar Fill */}
-                      <rect x={xPos} y={100 - barHeight} width={barWidth} height={barHeight} className="text-primary/10 fill-current rounded-lg" rx="4" />
-                      {/* Highlight Top Indicator Line */}
-                      <rect x={xPos} y={100 - barHeight} width={barWidth} height="4" className="text-primary fill-current" rx="2" />
-                      {/* Hover text label */}
-                      <text x={`${idx * 14.28 + 6.8}%`} y={90 - barHeight} textAnchor="middle" className="text-[10px] font-black text-primary opacity-0 hover:opacity-100 transition-opacity fill-current">
-                        {item.hrs}h
-                      </text>
-                      {/* Day text bottom */}
-                      <text x={`${idx * 14.28 + 6.8}%`} y="118" textAnchor="middle" className="text-[10px] font-bold text-gray-700 dark:text-white/40 fill-current">
-                        {item.day}
-                      </text>
-                    </g>
-                  );
-                })}
-              </svg>
+              <div className="shrink-0 sm:text-right">
+                <Link
+                  href="/discover"
+                  className="btn-outline !py-1.5 !px-3 text-xs w-full sm:w-auto"
+                >
+                  Connect
+                </Link>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Right Side: GitHub Consistency Grid & Quick Actions */}
-        <div className="space-y-6">
-          {/* GitHub-style Study Consistency calendar grid */}
-          <div className="card border border-gray-200/50 dark:border-white/[0.04] p-5">
-            <div className="flex flex-col gap-1 mb-4">
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Study Consistency</h3>
-              <p className="text-[10px] text-gray-700 dark:text-white/40 font-bold">Study density over the last 4 weeks</p>
-            </div>
-            
-            <div className="grid grid-cols-7 gap-1.5 w-fit mx-auto">
-              {studyBoxes.map((box, index) => (
-                <div
-                  key={index}
-                  className={`w-6 h-6 rounded-lg transition-colors ${
-                    box.level === 0 ? "bg-gray-100 dark:bg-white/[0.03] border border-gray-200/20 dark:border-white/[0.02]" :
-                    box.level === 1 ? "bg-primary/20 border border-primary/20" :
-                    box.level === 2 ? "bg-primary/45 border border-primary/30" :
-                    "bg-primary text-white border border-primary/40"
-                  }`}
-                  title={`Study Density Level: ${box.level}`}
-                />
-              ))}
-            </div>
-            
-            <div className="flex justify-between items-center text-[9px] font-bold text-gray-700 dark:text-white/35 mt-4 px-1 uppercase tracking-wider">
-              <span>Less active</span>
-              <div className="flex gap-1">
-                <span className="w-2.5 h-2.5 rounded bg-gray-100 dark:bg-white/[0.03]" />
-                <span className="w-2.5 h-2.5 rounded bg-primary/20" />
-                <span className="w-2.5 h-2.5 rounded bg-primary/45" />
-                <span className="w-2.5 h-2.5 rounded bg-primary" />
-              </div>
-              <span>More active</span>
-            </div>
+        {/* Right 1 Col: Requests & Activity */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Incoming Requests</h2>
+            <Link
+              href="/requests"
+              className="text-xs font-bold text-primary hover:underline"
+            >
+              Manage
+            </Link>
           </div>
 
-          {/* Quick Actions Grid with Hover Effects */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-black uppercase tracking-widest text-gray-700 dark:text-white/50 pl-1">Quick actions</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { href: "/notes",      label: "New note",    icon: FileText, desc: "Capture ideas" },
-                { href: "/focus",      label: "Start focus", icon: Timer,    desc: "Study session" },
-                { href: "/ai",         label: "Ask AI",      icon: Sparkles, desc: "Gemini tutor" },
-                { href: "/flashcards", label: "Flashcards",  icon: Layers,   desc: "AI generate" },
-              ].map(({ href, label, icon: Icon, desc }) => (
-                <Link key={href} href={href} className="card group cursor-pointer border border-gray-200/50 dark:border-white/[0.04] p-4 transition-all duration-300 hover:-translate-y-1.5 hover:border-primary/40 hover:shadow-[0_16px_36px_rgba(108,99,255,0.15)]">
-                  <div className="mb-2.5 flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/20 dark:bg-primary/15">
-                    <Icon size={14} className="text-primary group-hover:scale-110 transition-transform" />
-                  </div>
-                  <p className="text-xs font-bold text-gray-900 dark:text-white">{label}</p>
-                  <p className="text-[10px] text-gray-700 dark:text-white/45 mt-0.5 leading-snug">{desc}</p>
+          <div className="card !p-5 space-y-4">
+            <div className="p-3 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04]">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-900 dark:text-white">DevMatch Project</span>
+                <span className="text-[10px] font-semibold text-amber-500 bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 rounded-full">
+                  Pending Join
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                Priya M. applied for <strong>Frontend Lead</strong> role.
+              </p>
+              <div className="flex gap-2 mt-3">
+                <Link
+                  href="/requests"
+                  className="btn-primary !py-1 !px-3 text-[11px]"
+                >
+                  Review
                 </Link>
-              ))}
+              </div>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04]">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-900 dark:text-white">Teammate Connection</span>
+                <span className="text-[10px] font-semibold text-blue-500 bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 rounded-full">
+                  New Connect
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                Rahul V. wants to connect for <strong>HackMIT 2026</strong>.
+              </p>
+              <div className="flex gap-2 mt-3">
+                <Link
+                  href="/requests"
+                  className="btn-outline !py-1 !px-3 text-[11px]"
+                >
+                  Accept
+                </Link>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Recent Focus Sessions (Guidance Empty State) ───── */}
-      <section className="card border border-gray-200/50 dark:border-white/[0.04] p-6">
-        <div className="flex items-center justify-between mb-5">
+      {/* ── Open Projects & Opportunities ─────────────────────── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-black text-gray-900 dark:text-white">Recent Focus Sessions</h2>
-            <p className="text-[10px] text-gray-700 dark:text-white/40 font-bold mt-0.5">Logs of your completed pomodoro sessions</p>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Featured Projects Recruiting</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Student projects actively looking for teammates and contributors
+            </p>
           </div>
-          {recentSessions.length > 0 && (
-            <Link href="/focus" className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
-              View all <ArrowRight size={12} />
-            </Link>
-          )}
+          <Link
+            href="/projects"
+            className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+          >
+            <span>Explore all projects</span>
+            <ChevronRight size={14} />
+          </Link>
         </div>
 
-        {loading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-12 bg-gray-50 dark:bg-white/[0.02] rounded-xl animate-pulse" />
-            ))}
-          </div>
-        ) : recentSessions.length === 0 ? (
-          /* Premium Empty State */
-          <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-primary/5 flex items-center justify-center mb-4 text-2xl text-primary animate-pulse">
-              🧠
-            </div>
-            <h3 className="text-sm font-black text-gray-900 dark:text-white mb-1.5">No focus sessions yet</h3>
-            <p className="text-xs text-gray-700 dark:text-white/45 max-w-xs leading-relaxed mb-5 font-semibold">
-              Ready to study? Start your first 25-minute Pomodoro focus session now to earn XP.
-            </p>
-            <Link href="/focus" className="btn-primary pill-cta text-xs px-5 py-2.5 font-bold hover:scale-[1.02] transition-transform">
-              Start Focus Session
-            </Link>
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {recentSessions.map((session) => (
-              <div key={session.id} className="flex flex-col justify-between p-4 rounded-2xl bg-white/40 dark:bg-white/[0.02] border border-gray-150 dark:border-white/[0.03] hover:border-primary/20 transition-all">
-                <div className="flex items-center gap-2.5 mb-3">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                    <Timer size={13} className="text-emerald-500 animate-pulse" />
-                  </div>
-                  <span className="text-[10px] font-black text-gray-700 dark:text-white/40 uppercase tracking-widest truncate">
-                    {session.subject || "General"}
-                  </span>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-black text-gray-900 dark:text-white">{session.duration_minutes}</span>
-                  <span className="text-[10px] font-bold text-gray-700 dark:text-white/40 uppercase">minutes</span>
-                </div>
-                <div className="text-[10px] font-bold text-gray-700 dark:text-white/50 border-t border-gray-100/50 dark:border-white/[0.04] pt-2 mt-3 flex justify-between items-center">
-                  <span>{session.mode}</span>
-                  <span>{new Date(session.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
-                </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="card !p-5 hover:border-primary/30 transition-all flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-500/20">
+                  Hackathon Squad
+                </span>
+                <span className="text-xs text-gray-400 flex items-center gap-1">
+                  <Clock size={12} /> 2 slots left
+                </span>
               </div>
-            ))}
-          </div>
-        )}
-      </section>
+              <h3 className="font-bold text-base text-gray-900 dark:text-white">Campus Pulse Radar</h3>
+              <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-relaxed">
+                Real-time campus occupancy & study spot availability tracker using IoT sensors and Next.js.
+              </p>
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/[0.05] text-gray-700 dark:text-gray-300">
+                  Needed: Hardware / IoT
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/[0.05] text-gray-700 dark:text-gray-300">
+                  Needed: Mobile Dev
+                </span>
+              </div>
+            </div>
 
+            <div className="mt-5 pt-3 border-t border-gray-100 dark:border-white/[0.06] flex items-center justify-between">
+              <span className="text-xs text-gray-500 dark:text-gray-400">Team: 2/4 members</span>
+              <Link
+                href="/projects"
+                className="text-xs font-bold text-primary hover:underline"
+              >
+                Apply to join →
+              </Link>
+            </div>
+          </div>
+
+          <div className="card !p-5 hover:border-primary/30 transition-all flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
+                  Side Project
+                </span>
+                <span className="text-xs text-gray-400 flex items-center gap-1">
+                  <Clock size={12} /> 1 slot left
+                </span>
+              </div>
+              <h3 className="font-bold text-base text-gray-900 dark:text-white">OpenSource Course Planner</h3>
+              <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-relaxed">
+                Prerequisite graph visualizer and graduation degree audit for university engineering students.
+              </p>
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/[0.05] text-gray-700 dark:text-gray-300">
+                  Needed: D3.js / Graph Dev
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/[0.05] text-gray-700 dark:text-gray-300">
+                  Needed: Python Scraper
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-5 pt-3 border-t border-gray-100 dark:border-white/[0.06] flex items-center justify-between">
+              <span className="text-xs text-gray-500 dark:text-gray-400">Team: 3/4 members</span>
+              <Link
+                href="/projects"
+                className="text-xs font-bold text-primary hover:underline"
+              >
+                Apply to join →
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

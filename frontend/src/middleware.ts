@@ -2,7 +2,17 @@ import { createServerClient } from "@supabase/ssr";
 import type { CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED = ["/dashboard", "/notes", "/focus", "/ai", "/flashcards", "/profile"];
+const PROTECTED = [
+  "/onboarding",
+  "/dashboard",
+  "/discover",
+  "/projects",
+  "/teams",
+  "/requests",
+  "/profile/edit",
+  "/settings",
+  "/profile",
+];
 const AUTH_PAGES = ["/login", "/signup"];
 
 export async function middleware(request: NextRequest) {
