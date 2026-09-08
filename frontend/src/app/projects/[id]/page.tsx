@@ -26,6 +26,7 @@ import {
   ShieldCheck,
   Award,
   Sparkles,
+  Kanban,
 } from "lucide-react";
 
 export default function ProjectDetailPage({
@@ -332,26 +333,38 @@ export default function ProjectDetailPage({
           <span>Back to Projects</span>
         </Link>
 
-        {isOwner && (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIsEditModalOpen(true)}
-              className="btn-outline text-xs !py-1.5 !px-3 flex items-center gap-1"
+        <div className="flex items-center gap-2">
+          {(isOwner || isMember) && (
+            <Link
+              href={`/projects/${project.id}/workspace`}
+              className="btn-primary text-xs !py-1.5 !px-3.5 flex items-center gap-1.5 shadow-sm shadow-primary/20"
             >
-              <Edit3 size={13} />
-              <span>Edit Project</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleDeleteProject}
-              className="btn-outline text-xs !py-1.5 !px-3 text-red-500 hover:text-red-600 flex items-center gap-1"
-            >
-              <Trash2 size={13} />
-              <span>Delete</span>
-            </button>
-          </div>
-        )}
+              <Kanban size={13} />
+              <span>Team Workspace</span>
+            </Link>
+          )}
+
+          {isOwner && (
+            <>
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(true)}
+                className="btn-outline text-xs !py-1.5 !px-3 flex items-center gap-1"
+              >
+                <Edit3 size={13} />
+                <span>Edit Project</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteProject}
+                className="btn-outline text-xs !py-1.5 !px-3 text-red-500 hover:text-red-600 flex items-center gap-1"
+              >
+                <Trash2 size={13} />
+                <span>Delete</span>
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Project Banner & Overview */}
@@ -429,9 +442,18 @@ export default function ProjectDetailPage({
           )}
 
           {isMember && (
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              You are on this squad
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                You are on this squad
+              </span>
+              <Link
+                href={`/projects/${project.id}/workspace`}
+                className="btn-primary text-xs !py-1.5 !px-3 flex items-center gap-1"
+              >
+                <Kanban size={13} />
+                <span>Workspace</span>
+              </Link>
+            </div>
           )}
         </div>
       </div>
@@ -445,6 +467,15 @@ export default function ProjectDetailPage({
               Squad Roster ({project.members_count})
             </h2>
           </div>
+          {(isOwner || isMember) && (
+            <Link
+              href={`/projects/${project.id}/workspace`}
+              className="btn-outline text-xs !py-1 !px-2.5 flex items-center gap-1"
+            >
+              <Kanban size={12} />
+              <span>Workspace</span>
+            </Link>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">

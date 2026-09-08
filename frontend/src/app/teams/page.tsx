@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   FolderGit2,
   Trash2,
+  Kanban,
 } from "lucide-react";
 import { useCallback } from "react";
 
@@ -141,10 +142,17 @@ export default function TeamsPage() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary">
                     {team.my_member_role === "Owner" ? "Team Lead" : "Squad Member"}
                   </span>
+                  <Link
+                    href={`/projects/${team.id}/workspace`}
+                    className="btn-primary text-xs !py-1.5 !px-3 flex items-center gap-1.5 shadow-sm shadow-primary/20"
+                  >
+                    <Kanban size={13} />
+                    <span>Workspace</span>
+                  </Link>
                   <Link
                     href={`/projects/${team.id}`}
                     className="btn-outline text-xs !py-1.5 !px-3 flex items-center gap-1"

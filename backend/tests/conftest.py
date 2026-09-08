@@ -180,6 +180,9 @@ def mock_db():
         "project_members": [],
         "project_applications": [],
         "teammate_requests": [],
+        "tasks": [],
+        "milestones": [],
+        "project_activity": [],
     }
     return db
 
@@ -204,6 +207,7 @@ def client(mock_db, monkeypatch):
         "app.api.routes.requests",
         "app.api.routes.teams",
         "app.api.routes.matches",
+        "app.api.routes.workspace",
     ]
 
     for mod in modules_to_patch:

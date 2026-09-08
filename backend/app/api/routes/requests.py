@@ -9,6 +9,7 @@ from app.models.request import (
 from app.models.user import PublicUserProfile
 from app.core.database import get_database
 from app.core.identity import get_user_id
+from app.core.activity import record_activity
 
 router = APIRouter(prefix="/requests", tags=["requests"])
 
@@ -252,6 +253,19 @@ async def respond_to_request(
                     "role_id": role_id,
                     "member_role": "Member",
                 }).execute()
+
+                try:
+                    record_activity(
+                        database,
+                        project_id=project_id,
+                        actor_id=user_id,
+                        action_type="member_joined",
+                        entity_type="member",
+                        entity_id=user_id,
+                        metadata={"member_id": user_id, "role_name": role_title},
+                    )
+                except Exception:
+                    pass
 
             # Auto-resolve reciprocal pending applications for this user on this project
             app_res = (

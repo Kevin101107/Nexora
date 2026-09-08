@@ -65,6 +65,31 @@ SEED_DATA = {
   {"id":"req4","sender_id":"user-diego","receiver_id":"user-bob","project_id":"project-health","role_id":None,"message":"Would you like to help scale the data pipelines?","status":"declined","created_at":T},
   {"id":"req5","sender_id":"user-alice","receiver_id":"user-finn","project_id":"project-campus","role_id":"role-campus-design","message":"Inviting you to design the study and exchange dashboard.","status":"cancelled","created_at":T},
  ],
+ "milestones": [
+  {"id":"ms-campus-mvp","project_id":"project-campus","title":"MVP Prototype","description":"Core exchange and listing functionality for initial student testing","due_date":"2026-09-25","status":"active","created_by":"user-alice","created_at":T,"updated_at":T},
+  {"id":"ms-campus-beta","project_id":"project-campus","title":"Campus Beta Launch","description":"Campus-wide rollout with verified student ambassadors","due_date":"2026-10-15","status":"planned","created_by":"user-alice","created_at":T,"updated_at":T},
+  {"id":"ms-health-demo","project_id":"project-health","title":"Hackathon Pitch Demo","description":"End-to-end check-in flow with explainable insights","due_date":"2026-09-15","status":"active","created_by":"user-diego","created_at":T,"updated_at":T},
+  {"id":"ms-dev-v1","project_id":"project-devtools","title":"v1.0 Release","description":"Production-ready preview and rollback manager","due_date":"2026-09-30","status":"active","created_by":"user-bob","created_at":T,"updated_at":T},
+ ],
+ "tasks": [
+  {"id":"task-1","project_id":"project-campus","title":"Design peer exchange browsing UI","description":"Create accessible cards for equipment listings","status":"done","priority":"high","assignee_id":"user-erin","created_by":"user-alice","milestone_id":"ms-campus-mvp","due_date":"2026-09-10","created_at":T,"updated_at":T},
+  {"id":"task-2","project_id":"project-campus","title":"Build listing creation and photo modal","description":"Interactive form to publish new item listings","status":"in_progress","priority":"high","assignee_id":"user-erin","created_by":"user-alice","milestone_id":"ms-campus-mvp","due_date":"2026-09-18","created_at":T,"updated_at":T},
+  {"id":"task-3","project_id":"project-campus","title":"Implement reservation backend APIs","description":"FastAPI endpoints with student verification","status":"todo","priority":"high","assignee_id":"user-alice","created_by":"user-alice","milestone_id":"ms-campus-mvp","due_date":"2026-09-22","created_at":T,"updated_at":T},
+  {"id":"task-4","project_id":"project-campus","title":"Setup pickup location coordination","description":"Designate safe meeting hubs on campus","status":"todo","priority":"medium","assignee_id":None,"created_by":"user-alice","milestone_id":"ms-campus-beta","due_date":"2026-10-01","created_at":T,"updated_at":T},
+  {"id":"task-5","project_id":"project-health","title":"Build questionnaire check-in screen","description":"Daily student stress and sleep monitor form","status":"done","priority":"high","assignee_id":"user-alice","created_by":"user-diego","milestone_id":"ms-health-demo","due_date":"2026-09-12","created_at":T,"updated_at":T},
+  {"id":"task-6","project_id":"project-health","title":"Train sentiment analysis baseline","description":"Evaluate local lightweight NLP pipeline","status":"in_progress","priority":"high","assignee_id":"user-diego","created_by":"user-diego","milestone_id":"ms-health-demo","due_date":"2026-09-14","created_at":T,"updated_at":T},
+  {"id":"task-7","project_id":"project-devtools","title":"Implement release rollback operator","description":"Automated safe deployment rollbacks","status":"done","priority":"high","assignee_id":"user-finn","created_by":"user-bob","milestone_id":"ms-dev-v1","due_date":"2026-09-20","created_at":T,"updated_at":T},
+  {"id":"task-8","project_id":"project-devtools","title":"Release preview UI dashboard","description":"Real-time summary of pipeline build states","status":"in_progress","priority":"medium","assignee_id":"user-bob","created_by":"user-bob","milestone_id":"ms-dev-v1","due_date":"2026-09-25","created_at":T,"updated_at":T},
+ ],
+ "project_activity": [
+  {"id":"act-1","project_id":"project-campus","actor_id":"user-alice","action_type":"milestone_created","entity_type":"milestone","entity_id":"ms-campus-mvp","metadata":{"milestone_title":"MVP Prototype"},"created_at":"2026-09-01T10:10:00+00:00"},
+  {"id":"act-2","project_id":"project-campus","actor_id":"user-alice","action_type":"task_created","entity_type":"task","entity_id":"task-1","metadata":{"task_title":"Design peer exchange browsing UI","status":"todo","priority":"high"},"created_at":"2026-09-01T10:15:00+00:00"},
+  {"id":"act-3","project_id":"project-campus","actor_id":"user-alice","action_type":"task_assigned","entity_type":"task","entity_id":"task-1","metadata":{"task_title":"Design peer exchange browsing UI","assignee_id":"user-erin","assignee_name":"Ananya Rao"},"created_at":"2026-09-01T10:16:00+00:00"},
+  {"id":"act-4","project_id":"project-campus","actor_id":"user-erin","action_type":"task_status_changed","entity_type":"task","entity_id":"task-1","metadata":{"task_title":"Design peer exchange browsing UI","old_status":"in_progress","new_status":"done"},"created_at":"2026-09-05T14:30:00+00:00"},
+  {"id":"act-5","project_id":"project-campus","actor_id":"user-erin","action_type":"task_completed","entity_type":"task","entity_id":"task-1","metadata":{"task_title":"Design peer exchange browsing UI"},"created_at":"2026-09-05T14:30:00+00:00"},
+  {"id":"act-6","project_id":"project-campus","actor_id":"user-alice","action_type":"task_created","entity_type":"task","entity_id":"task-2","metadata":{"task_title":"Build listing creation and photo modal","status":"todo","priority":"high"},"created_at":"2026-09-06T09:00:00+00:00"},
+  {"id":"act-7","project_id":"project-campus","actor_id":"user-erin","action_type":"task_status_changed","entity_type":"task","entity_id":"task-2","metadata":{"task_title":"Build listing creation and photo modal","old_status":"todo","new_status":"in_progress"},"created_at":"2026-09-06T11:00:00+00:00"},
+ ],
 }
 
 class Result:

@@ -157,3 +157,83 @@ export interface UserRoleRecommendation {
   match: MatchScoreResult;
 }
 
+export type TaskStatus = "todo" | "in_progress" | "done";
+export type TaskPriority = "low" | "medium" | "high";
+export type MilestoneStatus = "planned" | "active" | "completed";
+
+export interface Task {
+  id: string;
+  project_id: string;
+  title: string;
+  description?: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  assignee_id?: string | null;
+  assignee?: PublicUserProfile | null;
+  created_by: string;
+  milestone_id?: string | null;
+  milestone_title?: string | null;
+  due_date?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Milestone {
+  id: string;
+  project_id: string;
+  title: string;
+  description?: string | null;
+  due_date?: string | null;
+  status: MilestoneStatus;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  total_tasks: number;
+  completed_tasks: number;
+  progress_percentage: number;
+}
+
+export interface ProjectProgress {
+  total_tasks: number;
+  completed_tasks: number;
+  todo_tasks: number;
+  in_progress_tasks: number;
+  progress_percentage: number;
+}
+
+export interface ProjectActivity {
+  id: string;
+  project_id: string;
+  actor_id: string;
+  actor?: PublicUserProfile | null;
+  action_type: string;
+  entity_type: string;
+  entity_id?: string | null;
+  metadata: Record<string, any>;
+  created_at: string;
+}
+
+export interface WorkspaceMemberStats {
+  user_id: string;
+  user?: PublicUserProfile | null;
+  member_role: string;
+  role_name?: string | null;
+  assigned_tasks_count: number;
+  completed_tasks_count: number;
+}
+
+export interface WorkspaceOverview {
+  project_id: string;
+  title: string;
+  description?: string | null;
+  category: string;
+  status: string;
+  owner_id: string;
+  owner?: PublicUserProfile | null;
+  progress: ProjectProgress;
+  members: WorkspaceMemberStats[];
+  active_milestones: Milestone[];
+  recent_activity: ProjectActivity[];
+  is_owner: boolean;
+}
+

@@ -9,6 +9,7 @@ from app.models.application import (
 from app.models.user import PublicUserProfile
 from app.core.database import get_database
 from app.core.identity import get_user_id
+from app.core.activity import record_activity
 from app.services.matching import calculate_match_score
 
 router = APIRouter(tags=["applications"])
@@ -296,6 +297,19 @@ async def respond_to_application(
                 "role_id": role_id,
                 "member_role": "Member",
             }).execute()
+
+            try:
+                record_activity(
+                    database,
+                    project_id=app_row["project_id"],
+                    actor_id=user_id,
+                    action_type="member_joined",
+                    entity_type="member",
+                    entity_id=app_row["applicant_id"],
+                    metadata={"member_id": app_row["applicant_id"], "role_name": role_title},
+                )
+            except Exception:
+                pass
 
         # Auto-resolve reciprocal pending teammate requests between project and applicant
         req_res = (

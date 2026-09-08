@@ -14,6 +14,7 @@ from app.models.project import (
 from app.models.user import PublicUserProfile
 from app.core.database import get_database
 from app.core.identity import get_user_id
+from app.core.activity import record_activity
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -484,5 +485,32 @@ async def delete_project_member(id: str, member_id: str, authorization: str = He
         database.table("project_members").delete().eq("id", member_id).execute()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to remove member: {str(e)}")
+
+    # 7. Unassign all tasks assigned to the removed member in this project
+    removed_user_id = member_row.get("user_id")
+    if removed_user_id:
+        try:
+            t_res = database.table("tasks").select("*").eq("project_id", id).eq("assignee_id", removed_user_id).execute()
+            if t_res.data:
+                for t in t_res.data:
+                    database.table("tasks").update({"assignee_id": None}).eq("id", t["id"]).execute()
+        except Exception:
+            pass
+
+        # 8. Record member_removed activity
+        try:
+            u_info = _fetch_user_public(removed_user_id, database)
+            member_name = u_info.display_name if u_info else removed_user_id
+            record_activity(
+                database,
+                project_id=id,
+                actor_id=user_id,
+                action_type="member_removed",
+                entity_type="member",
+                entity_id=removed_user_id,
+                metadata={"removed_user_id": removed_user_id, "member_name": member_name},
+            )
+        except Exception:
+            pass
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
