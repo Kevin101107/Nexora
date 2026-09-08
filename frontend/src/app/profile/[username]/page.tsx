@@ -1,8 +1,9 @@
 "use client";
+const session = true;
 
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase";
+import { DEVELOPMENT_USER_ID } from "@/lib/development";
 import { createApiClient } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { PublicUserProfile } from "@/lib/types";
@@ -23,10 +24,9 @@ import {
 export default function PublicProfilePage({
   params,
 }: {
-  params: Promise<{ username: string }>;
+  params: { username: string };
 }) {
-  const resolvedParams = use(params);
-  const username = resolvedParams.username;
+  const username = params.username;
   const { toast } = useToast();
 
   const [profile, setProfile] = useState<PublicUserProfile | null>(null);
@@ -40,16 +40,13 @@ export default function PublicProfilePage({
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (session) {
-        setCurrentUserId(session.user.id);
+        setCurrentUserId(DEVELOPMENT_USER_ID);
       }
 
       // Public profile endpoint doesn't strictly require auth header, but we can send it
-      const api = createApiClient(session?.access_token || "");
+      const api = createApiClient(DEVELOPMENT_USER_ID);
       try {
         const p = await api.get<PublicUserProfile>(`/users/${username}`);
         setProfile(p);
@@ -67,16 +64,13 @@ export default function PublicProfilePage({
     if (!profile) return;
     setSendingRequest(true);
     try {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (!session) {
         toast("Please log in to send teammate requests", "error");
         setSendingRequest(false);
         return;
       }
-      const api = createApiClient(session.access_token);
+      const api = createApiClient(DEVELOPMENT_USER_ID);
       await api.post("/requests", {
         receiver_id: profile.id,
         message: connectMessage.trim() || null,

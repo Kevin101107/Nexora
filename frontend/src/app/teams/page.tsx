@@ -1,8 +1,9 @@
 "use client";
+const session = true;
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase";
+import { DEVELOPMENT_USER_ID } from "@/lib/development";
 import { createApiClient } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { UserTeam } from "@/lib/types";
@@ -25,15 +26,12 @@ export default function TeamsPage() {
   useEffect(() => {
     async function loadTeams() {
       setLoading(true);
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (!session) {
         setLoading(false);
         return;
       }
-      const api = createApiClient(session.access_token);
+      const api = createApiClient(DEVELOPMENT_USER_ID);
       try {
         const res = await api.get<UserTeam[]>("/teams/me");
         setTeams(res || []);

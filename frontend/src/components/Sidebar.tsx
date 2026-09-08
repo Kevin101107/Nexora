@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, Compass, FolderGit2, Users, Inbox, User, LogOut, Sun, Moon,
+  LayoutDashboard, Compass, FolderGit2, Users, Inbox, User, Sun, Moon,
   ChevronLeft, ChevronRight
 } from "lucide-react";
-import { createClient } from "@/lib/supabase";
+import { DEVELOPMENT_USER_ID } from "@/lib/development";
 import { createApiClient } from "@/lib/api";
 import { useEffect, useState } from "react";
 
@@ -21,7 +21,6 @@ const NAV = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const [dark, setDark] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [profile, setProfile] = useState<any>(null);
@@ -29,8 +28,7 @@ export default function Sidebar() {
   useEffect(() => {
     // Theme Initializer
     const savedTheme = localStorage.getItem("nexora_theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const isDark = savedTheme ? savedTheme === "dark" : prefersDark;
+    const isDark = savedTheme !== "light";
     setDark(isDark);
     document.documentElement.classList.toggle("dark", isDark);
 
@@ -39,12 +37,8 @@ export default function Sidebar() {
     setCollapsed(savedCollapse);
 
     // Fetch User Profile
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) return;
-      const api = createApiClient(session.access_token);
-      api.get<any>("/users/me").then(setProfile).catch(() => null);
-    });
+    const api = createApiClient(DEVELOPMENT_USER_ID);
+    api.get<any>("/users/me").then(setProfile).catch(() => null);
   }, []);
 
   function toggleDark() {
@@ -59,12 +53,6 @@ export default function Sidebar() {
     setCollapsed(nextCollapse);
     localStorage.setItem("sidebar_collapsed", String(nextCollapse));
     window.dispatchEvent(new Event("sidebar_toggle"));
-  }
-
-  async function logout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/login");
   }
 
   const nameInitial = profile?.display_name
@@ -155,18 +143,6 @@ export default function Sidebar() {
             {!collapsed && <span className="animate-fade-up">{dark ? "Light mode" : "Dark mode"}</span>}
           </button>
 
-          {/* Logout */}
-          <button
-            type="button"
-            onClick={logout}
-            className={`btn-ghost w-full hover:text-red-600 dark:hover:text-red-400 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 ${
-              collapsed ? "justify-center p-2.5" : "justify-start gap-3 text-sm"
-            }`}
-            title="Log out"
-          >
-            <LogOut size={16} />
-            {!collapsed && <span className="animate-fade-up">Log out</span>}
-          </button>
         </div>
       </aside>
 
@@ -196,10 +172,7 @@ export default function Sidebar() {
             {dark ? <Sun size={14} /> : <Moon size={14} />}
             {dark ? "Light" : "Dark"}
           </button>
-          <button type="button" onClick={logout} className="btn-ghost text-xs px-2 py-1.5 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10">
-            <LogOut size={14} />
-            Log out
-          </button>
+          <span className="text-[10px] font-semibold text-gray-400">Local demo mode</span>
         </div>
       </div>
     </>

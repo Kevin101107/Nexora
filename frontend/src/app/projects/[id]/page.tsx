@@ -1,9 +1,10 @@
 "use client";
+const session = true;
 
-import { use, useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase";
+import { DEVELOPMENT_USER_ID } from "@/lib/development";
 import { createApiClient } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { Project, ProjectRole, ProjectApplication, RoleCandidateMatch, PublicUserProfile } from "@/lib/types";
@@ -30,10 +31,9 @@ import {
 export default function ProjectDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const resolvedParams = use(params);
-  const projectId = resolvedParams.id;
+  const projectId = params.id;
   const router = useRouter();
   const { toast } = useToast();
 
@@ -78,11 +78,8 @@ export default function ProjectDetailPage({
     setIsFindMatchesModalOpen(true);
     setLoadingCandidates(true);
     try {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const api = createApiClient(session?.access_token || "");
+
+      const api = createApiClient(DEVELOPMENT_USER_ID);
       const res = await api.get<RoleCandidateMatch[]>(
         `/projects/${projectId}/roles/${role.id}/matches?limit=20`
       );
@@ -97,15 +94,12 @@ export default function ProjectDetailPage({
 
   async function handleInviteCandidate(user: PublicUserProfile, role: ProjectRole) {
     try {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (!session) {
         toast("Please log in to invite candidates", "error");
         return;
       }
-      const api = createApiClient(session.access_token);
+      const api = createApiClient(DEVELOPMENT_USER_ID);
       await api.post("/requests", {
         receiver_id: user.id,
         project_id: projectId,
@@ -119,14 +113,11 @@ export default function ProjectDetailPage({
   }
 
   const loadProject = useCallback(async () => {
-    const supabase = createClient();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+
     if (session) {
-      setCurrentUserId(session.user.id);
+      setCurrentUserId(DEVELOPMENT_USER_ID);
     }
-    const api = createApiClient(session?.access_token || "");
+    const api = createApiClient(DEVELOPMENT_USER_ID);
     try {
       const p = await api.get<Project>(`/projects/${projectId}`);
       setProject(p);
@@ -136,7 +127,7 @@ export default function ProjectDetailPage({
       setEditStatus(p.status);
 
       // If user is owner, load applications
-      if (session && p.owner_id === session.user.id) {
+      if (session && p.owner_id === DEVELOPMENT_USER_ID) {
         setLoadingApps(true);
         const apps = await api.get<ProjectApplication[]>(`/projects/${projectId}/applications`).catch(() => []);
         setApplications(apps);
@@ -162,16 +153,13 @@ export default function ProjectDetailPage({
     if (!project) return;
     setSubmittingApp(true);
     try {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (!session) {
         toast("Please log in to apply", "error");
         setSubmittingApp(false);
         return;
       }
-      const api = createApiClient(session.access_token);
+      const api = createApiClient(DEVELOPMENT_USER_ID);
       await api.post(`/projects/${projectId}/apply`, {
         role_id: selectedRole ? selectedRole.id : null,
         message: applyMessage.trim() || null,
@@ -192,12 +180,9 @@ export default function ProjectDetailPage({
   // Owner Application Decision handler
   async function handleApplicationDecision(appId: string, action: "accepted" | "rejected") {
     try {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (!session) return;
-      const api = createApiClient(session.access_token);
+      const api = createApiClient(DEVELOPMENT_USER_ID);
       await api.post(`/applications/${appId}/respond`, { action });
       toast(`Application ${action}!`);
       loadProject();
@@ -212,12 +197,9 @@ export default function ProjectDetailPage({
     if (!newRoleName.trim()) return;
     setAddingRole(true);
     try {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (!session) return;
-      const api = createApiClient(session.access_token);
+      const api = createApiClient(DEVELOPMENT_USER_ID);
       const skillsArray = newRoleSkills
         .split(",")
         .map((s) => s.trim())
@@ -249,12 +231,9 @@ export default function ProjectDetailPage({
     e.preventDefault();
     setSavingEdit(true);
     try {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (!session) return;
-      const api = createApiClient(session.access_token);
+      const api = createApiClient(DEVELOPMENT_USER_ID);
 
       await api.patch(`/projects/${projectId}`, {
         title: editTitle.trim(),
@@ -277,12 +256,9 @@ export default function ProjectDetailPage({
   async function handleDeleteProject() {
     if (!confirm("Are you sure you want to delete this project? This cannot be undone.")) return;
     try {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (!session) return;
-      const api = createApiClient(session.access_token);
+      const api = createApiClient(DEVELOPMENT_USER_ID);
       await api.delete(`/projects/${projectId}`);
       toast("Project deleted successfully");
       router.push("/projects");

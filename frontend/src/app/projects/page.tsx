@@ -1,8 +1,9 @@
 "use client";
+const session = true;
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase";
+import { DEVELOPMENT_USER_ID } from "@/lib/development";
 import { createApiClient } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { ProjectListItem, ProjectRole } from "@/lib/types";
@@ -44,11 +45,8 @@ export default function ProjectsPage() {
   useEffect(() => {
     async function loadProjects() {
       setLoading(true);
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const api = createApiClient(session?.access_token || "");
+
+      const api = createApiClient(DEVELOPMENT_USER_ID);
 
       try {
         let path = "/projects?";
@@ -75,16 +73,13 @@ export default function ProjectsPage() {
     if (!applyingProject) return;
     setSubmittingApp(true);
     try {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (!session) {
         toast("Please log in to apply", "error");
         setSubmittingApp(false);
         return;
       }
-      const api = createApiClient(session.access_token);
+      const api = createApiClient(DEVELOPMENT_USER_ID);
       await api.post(`/projects/${applyingProject.id}/apply`, {
         role_id: selectedRole ? selectedRole.id : null,
         message: applyMessage.trim() || null,

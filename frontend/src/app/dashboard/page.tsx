@@ -1,8 +1,9 @@
 "use client";
+const session = true;
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase";
+import { DEVELOPMENT_USER_ID } from "@/lib/development";
 import { createApiClient } from "@/lib/api";
 import { UserProfileRead, ProjectListItem, TeammateRequest, UserTeam, UserRoleRecommendation } from "@/lib/types";
 import MatchScoreBadge from "@/components/MatchScoreBadge";
@@ -30,16 +31,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function loadDashboard() {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (!session) {
         setLoading(false);
         return;
       }
 
-      const api = createApiClient(session.access_token);
+      const api = createApiClient(DEVELOPMENT_USER_ID);
       try {
         const [prof, projs, teams, reqs, apps, recs] = await Promise.all([
           api.get<UserProfileRead>("/users/me").catch(() => null),

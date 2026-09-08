@@ -1,9 +1,10 @@
 "use client";
+const session = true;
 
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase";
+import { DEVELOPMENT_USER_ID } from "@/lib/development";
 import { createApiClient } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { Project } from "@/lib/types";
@@ -95,17 +96,14 @@ export default function NewProjectPage() {
 
     setSubmitting(true);
     try {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (!session) {
         toast("Please log in to post a project", "error");
         setSubmitting(false);
         return;
       }
 
-      const api = createApiClient(session.access_token);
+      const api = createApiClient(DEVELOPMENT_USER_ID);
 
       const rolesPayload = roles
         .filter((r) => r.role_name.trim())

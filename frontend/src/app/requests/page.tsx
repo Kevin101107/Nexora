@@ -1,8 +1,9 @@
 "use client";
+const session = true;
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase";
+import { DEVELOPMENT_USER_ID } from "@/lib/development";
 import { createApiClient } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { TeammateRequest, ProjectApplication } from "@/lib/types";
@@ -30,16 +31,13 @@ export default function RequestsPage() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const supabase = createClient();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+
     if (!session) {
       setLoading(false);
       return;
     }
 
-    const api = createApiClient(session.access_token);
+    const api = createApiClient(DEVELOPMENT_USER_ID);
     try {
       const [rec, sent, apps] = await Promise.all([
         api.get<TeammateRequest[]>("/requests?direction=received").catch(() => []),
@@ -64,12 +62,9 @@ export default function RequestsPage() {
   // Accept or decline teammate request
   async function handleRespondTeammateRequest(id: string, action: "accepted" | "declined") {
     try {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (!session) return;
-      const api = createApiClient(session.access_token);
+      const api = createApiClient(DEVELOPMENT_USER_ID);
       await api.post(`/requests/${id}/respond`, { action });
       toast(`Connection request ${action}!`);
       loadData();
@@ -81,12 +76,9 @@ export default function RequestsPage() {
   // Cancel teammate request
   async function handleCancelTeammateRequest(id: string) {
     try {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (!session) return;
-      const api = createApiClient(session.access_token);
+      const api = createApiClient(DEVELOPMENT_USER_ID);
       await api.post(`/requests/${id}/cancel`);
       toast("Connection request cancelled");
       loadData();
@@ -98,12 +90,9 @@ export default function RequestsPage() {
   // Withdraw project application
   async function handleWithdrawApplication(id: string) {
     try {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (!session) return;
-      const api = createApiClient(session.access_token);
+      const api = createApiClient(DEVELOPMENT_USER_ID);
       await api.post(`/applications/${id}/withdraw`);
       toast("Application withdrawn");
       loadData();

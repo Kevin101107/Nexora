@@ -1,8 +1,9 @@
 "use client";
+const session = true;
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase";
+import { DEVELOPMENT_USER_ID } from "@/lib/development";
 import { createApiClient } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { PublicUserProfile, UserRoleRecommendation } from "@/lib/types";
@@ -51,17 +52,14 @@ export default function DiscoverPage() {
   useEffect(() => {
     async function loadData() {
       setLoading(true);
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (session) {
-        setCurrentUserId(session.user.id);
+        setCurrentUserId(DEVELOPMENT_USER_ID);
       }
-      const api = createApiClient(session?.access_token || "");
+      const api = createApiClient(DEVELOPMENT_USER_ID);
 
       try {
-        // If session exists, fetch recommended roles for user
+        // Fetch recommended roles for the development user
         if (session) {
           const recs = await api.get<UserRoleRecommendation[]>("/matches/me/roles?limit=25").catch(() => []);
           setRecommendations(recs || []);
@@ -73,7 +71,7 @@ export default function DiscoverPage() {
         let path = "/users?";
         if (selectedRole !== "All Roles") path += `role=${encodeURIComponent(selectedRole)}&`;
         if (query.trim()) path += `q=${encodeURIComponent(query.trim())}&`;
-        const usersList = await api.get<PublicUserProfile[]>(path);
+        const usersList = await api.get<PublicUserProfile[]>(path).catch(() => []);
         setBuilders(usersList || []);
       } catch (err: any) {
         // Fallbacks
@@ -94,16 +92,13 @@ export default function DiscoverPage() {
     if (!targetBuilder) return;
     setSendingRequest(true);
     try {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (!session) {
         toast("Please log in to send teammate requests", "error");
         setSendingRequest(false);
         return;
       }
-      const api = createApiClient(session.access_token);
+      const api = createApiClient(DEVELOPMENT_USER_ID);
       await api.post("/requests", {
         receiver_id: targetBuilder.id,
         message: connectMessage.trim() || null,
@@ -179,7 +174,7 @@ export default function DiscoverPage() {
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       ) : activeTab === "recommended" ? (
-        /* ── Tab 1: Recommended Roles for Authenticated User ── */
+        /* ── Tab 1: Recommended Roles for Development User ── */
         <div className="space-y-4">
           <div className="p-4 rounded-2xl bg-gradient-to-r from-primary/10 via-transparent to-transparent border border-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>

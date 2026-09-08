@@ -1,9 +1,10 @@
 "use client";
+const session = true;
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase";
+import { DEVELOPMENT_USER_ID } from "@/lib/development";
 import { createApiClient } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { UserProfileRead } from "@/lib/types";
@@ -88,12 +89,9 @@ export default function EditProfilePage() {
   useEffect(() => {
     async function loadProfile() {
       setLoading(true);
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (session) {
-        const api = createApiClient(session.access_token);
+        const api = createApiClient(DEVELOPMENT_USER_ID);
         const p = await api.get<UserProfileRead>("/users/me").catch(() => null);
         if (p) {
           setDisplayName(p.display_name || "");
@@ -141,17 +139,14 @@ export default function EditProfilePage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (!session) {
-        toast("Not authenticated", "error");
+        toast("Development identity unavailable", "error");
         setSaving(false);
         return;
       }
 
-      const api = createApiClient(session.access_token);
+      const api = createApiClient(DEVELOPMENT_USER_ID);
       await api.patch<UserProfileRead>("/users/me", {
         display_name: displayName.trim() || null,
         username: username.trim() || null,
@@ -372,7 +367,7 @@ export default function EditProfilePage() {
                   }
                 }}
                 className="input-field text-xs"
-                placeholder="Type a skill and press Enter or Add (e.g. Supabase, Prisma, Redis)"
+                placeholder="Type a skill and press Enter or Add (e.g. FastAPI, Prisma, Redis)"
               />
               <button
                 type="button"

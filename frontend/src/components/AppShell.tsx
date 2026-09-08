@@ -1,7 +1,6 @@
 "use client";
 
 import Sidebar from "@/components/Sidebar";
-import AuthGuard from "@/components/AuthGuard";
 import { useEffect, useState } from "react";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -17,15 +16,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthGuard>
-      <div className="flex min-h-screen">
+    <div className="flex min-h-screen">
         <Sidebar />
         <main className={`flex-1 p-4 sm:p-6 md:p-8 pb-20 md:pb-8 min-h-screen transition-all duration-300 ${
           collapsed ? "md:ml-18" : "md:ml-60"
         }`}>
           {children}
         </main>
-      </div>
-    </AuthGuard>
+    </div>
   );
 }

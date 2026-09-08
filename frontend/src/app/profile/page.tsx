@@ -1,8 +1,9 @@
 "use client";
+const session = true;
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase";
+import { DEVELOPMENT_USER_ID } from "@/lib/development";
 import { createApiClient } from "@/lib/api";
 import { UserProfileRead } from "@/lib/types";
 import {
@@ -26,12 +27,9 @@ export default function ProfilePage() {
   useEffect(() => {
     async function loadProfile() {
       setLoading(true);
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+
       if (session) {
-        const api = createApiClient(session.access_token);
+        const api = createApiClient(DEVELOPMENT_USER_ID);
         const p = await api.get<UserProfileRead>("/users/me").catch(() => null);
         if (p) setProfile(p);
       }
