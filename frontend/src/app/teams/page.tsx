@@ -1,14 +1,60 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Users, Plus, Shield, CheckCircle2, ArrowRight, Clock, Award } from "lucide-react";
+import { createClient } from "@/lib/supabase";
+import { createApiClient } from "@/lib/api";
 import { useToast } from "@/components/Toast";
+import { UserTeam } from "@/lib/types";
+import {
+  Users,
+  Plus,
+  ArrowRight,
+  Clock,
+  Loader2,
+  ExternalLink,
+  ShieldCheck,
+  FolderGit2,
+} from "lucide-react";
 
 export default function TeamsPage() {
+  const [teams, setTeams] = useState<UserTeam[]>([]);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  useEffect(() => {
+    async function loadTeams() {
+      setLoading(true);
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        setLoading(false);
+        return;
+      }
+      const api = createApiClient(session.access_token);
+      try {
+        const res = await api.get<UserTeam[]>("/teams/me");
+        setTeams(res || []);
+      } catch (err: any) {
+        setTeams([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadTeams();
+  }, []);
+
+  const categoryLabels: Record<string, string> = {
+    hackathon: "Hackathon Squad",
+    side_project: "Side Project",
+    research: "Research / Capstone",
+    startup: "Startup Venture",
+  };
+
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-12">
+    <div className="max-w-5xl mx-auto space-y-6 pb-16">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -21,114 +67,122 @@ export default function TeamsPage() {
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-            Manage your project rosters, hackathon teams, and collaborative workspaces.
+            Manage your active project rosters, hackathon teams, and squad members.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => toast("Team creation wizard will launch in Phase 2!")}
-          className="btn-primary text-xs sm:text-sm !py-2 !px-4 self-start sm:self-auto"
+        <Link
+          href="/projects/new"
+          className="btn-primary text-xs sm:text-sm !py-2 !px-4 self-start sm:self-auto flex items-center gap-1.5"
         >
           <Plus size={16} />
           <span>Create New Team</span>
-        </button>
+        </Link>
       </div>
 
-      {/* Current Team Spotlight */}
-      <div className="card !p-6 space-y-5 border-primary/20 bg-gradient-to-br from-white/90 to-primary/[0.03] dark:from-[#16162a] dark:to-primary/[0.05]">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100 dark:border-white/[0.06]">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
-                Active Squad
-              </span>
-              <span className="text-xs text-gray-400">Fall Hackathon 2026</span>
-            </div>
-            <h2 className="text-xl font-black text-gray-900 dark:text-white">SyntaxSquad</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Project: Campus Pulse Radar • Target: 36-hour hackathon submission
-            </p>
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      ) : teams.length === 0 ? (
+        <div className="card !p-12 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-white/[0.05] text-gray-400 flex items-center justify-center mx-auto">
+            <Users size={24} />
           </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
-              3/4 Members
-            </span>
+          <h2 className="text-base font-bold text-gray-900 dark:text-white">
+            You haven&apos;t joined any squads yet
+          </h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
+            Create your own project team or apply to open roles on existing student projects.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <Link href="/projects/new" className="btn-primary text-xs !py-2 !px-4">
+              Post a Project Team
+            </Link>
+            <Link href="/projects" className="btn-outline text-xs !py-2 !px-4">
+              Browse Recruiting Projects
+            </Link>
           </div>
         </div>
+      ) : (
+        <div className="space-y-6">
+          {teams.map((team) => (
+            <div
+              key={team.id}
+              className="card !p-6 space-y-5 border-primary/20 bg-gradient-to-br from-white/90 to-primary/[0.03] dark:from-[#16162a] dark:to-primary/[0.05]"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100 dark:border-white/[0.06]">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
+                      {categoryLabels[team.category] || team.category}
+                    </span>
+                    <span className="text-xs text-gray-400 capitalize">{team.status}</span>
+                  </div>
+                  <h2 className="text-xl font-black text-gray-900 dark:text-white">
+                    {team.title}
+                  </h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
+                    {team.description}
+                  </p>
+                </div>
 
-        {/* Member Roster */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04]">
-            <div className="flex items-center gap-2.5 mb-1.5">
-              <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary font-bold flex items-center justify-center text-xs">
-                You
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary">
+                    {team.my_member_role === "Owner" ? "Team Lead" : "Squad Member"}
+                  </span>
+                  <Link
+                    href={`/projects/${team.id}`}
+                    className="btn-outline text-xs !py-1.5 !px-3 flex items-center gap-1"
+                  >
+                    <span>Manage Squad</span>
+                    <ArrowRight size={13} />
+                  </Link>
+                </div>
               </div>
+
+              {/* Member Roster */}
               <div>
-                <p className="text-xs font-bold text-gray-900 dark:text-white">Team Lead</p>
-                <p className="text-[10px] text-gray-400">Full-Stack / React</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2.5">
+                  Roster ({team.members_count} Members)
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {team.members.map((m) => {
+                    const memberName = m.user?.display_name || m.user?.username || "Builder";
+                    const initial = memberName.charAt(0).toUpperCase();
+                    return (
+                      <div
+                        key={m.id}
+                        className="p-3.5 rounded-2xl bg-white dark:bg-[#16162a] border border-gray-100 dark:border-white/[0.04] flex items-center gap-3"
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary font-bold flex items-center justify-center text-xs shrink-0">
+                          {initial}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                            {memberName}
+                          </p>
+                          <p className="text-[10px] text-gray-400 truncate">
+                            {m.role_name || (m.member_role === "Owner" ? "Founder" : "Member")}
+                          </p>
+                        </div>
+                        {m.user?.username && (
+                          <Link
+                            href={`/profile/${m.user.username}`}
+                            className="text-gray-400 hover:text-primary transition-colors shrink-0"
+                          >
+                            <ExternalLink size={12} />
+                          </Link>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-            <span className="text-[10px] font-semibold text-primary">Team Founder</span>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04]">
-            <div className="flex items-center gap-2.5 mb-1.5">
-              <div className="w-8 h-8 rounded-xl bg-violet-500/10 text-violet-500 font-bold flex items-center justify-center text-xs">
-                AR
-              </div>
-              <div>
-                <p className="text-xs font-bold text-gray-900 dark:text-white">Aarav Rao</p>
-                <p className="text-[10px] text-gray-400">Backend / Go</p>
-              </div>
-            </div>
-            <span className="text-[10px] font-semibold text-gray-500">Confirmed Member</span>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04]">
-            <div className="flex items-center gap-2.5 mb-1.5">
-              <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-500 font-bold flex items-center justify-center text-xs">
-                SK
-              </div>
-              <div>
-                <p className="text-xs font-bold text-gray-900 dark:text-white">Sneha Kapoor</p>
-                <p className="text-[10px] text-gray-400">UI/UX Designer</p>
-              </div>
-            </div>
-            <span className="text-[10px] font-semibold text-gray-500">Confirmed Member</span>
-          </div>
+          ))}
         </div>
-
-        <div className="p-3 rounded-2xl bg-amber-500/5 border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300 font-medium">
-            <Clock size={16} />
-            <span>Open Spot: <strong>Mobile / React Native Developer</strong> needed to complete the team.</span>
-          </div>
-          <Link
-            href="/discover"
-            className="text-xs font-bold text-primary hover:underline shrink-0"
-          >
-            Find a builder →
-          </Link>
-        </div>
-      </div>
-
-      {/* Empty / Formation CTA */}
-      <div className="card !p-8 text-center space-y-3">
-        <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-white/[0.05] text-gray-400 flex items-center justify-center mx-auto">
-          <Users size={22} />
-        </div>
-        <h3 className="font-bold text-base text-gray-900 dark:text-white">Looking for more squads?</h3>
-        <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-          You can participate in multiple side projects, research groups, or hackathon teams simultaneously.
-        </p>
-        <div className="pt-2">
-          <Link href="/projects" className="btn-outline text-xs !py-2 !px-4">
-            Browse Recruiting Projects
-          </Link>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

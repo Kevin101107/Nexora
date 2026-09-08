@@ -1,29 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import { createApiClient } from "@/lib/api";
-import { useToast } from "@/components/Toast";
-import { User, Loader2, Save, ShieldCheck, Mail, Sparkles } from "lucide-react";
-
-interface ProfileData {
-  id: string;
-  email: string;
-  display_name?: string | null;
-  headline?: string | null;
-  bio?: string | null;
-  skills?: string[];
-  roles?: string[];
-  availability?: string | null;
-}
+import { UserProfileRead } from "@/lib/types";
+import {
+  User,
+  Loader2,
+  Edit3,
+  ExternalLink,
+  Mail,
+  Github,
+  Linkedin,
+  Clock,
+  Sparkles,
+  Code2,
+  Compass,
+} from "lucide-react";
 
 export default function ProfilePage() {
-  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [profile, setProfile] = useState<UserProfileRead | null>(null);
   const [loading, setLoading] = useState(true);
-  const [name, setName] = useState("");
-  const [headline, setHeadline] = useState("");
-  const [saving, setSaving] = useState(false);
-  const { toast } = useToast();
 
   useEffect(() => {
     async function loadProfile() {
@@ -34,156 +32,199 @@ export default function ProfilePage() {
       } = await supabase.auth.getSession();
       if (session) {
         const api = createApiClient(session.access_token);
-        const p = await api.get<ProfileData>("/users/me").catch(() => null);
-        if (p) {
-          setProfile(p);
-          setName(p.display_name || "");
-          setHeadline(p.headline || "");
-        }
+        const p = await api.get<UserProfileRead>("/users/me").catch(() => null);
+        if (p) setProfile(p);
       }
       setLoading(false);
     }
     loadProfile();
   }, []);
 
-  async function save() {
-    setSaving(true);
-    try {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) {
-        toast("Not authenticated", "error");
-        setSaving(false);
-        return;
-      }
-      const api = createApiClient(session.access_token);
-      const updated = await api.put<ProfileData>("/users/me", {
-        display_name: name.trim() || null,
-        headline: headline.trim() || null,
-      });
-      if (updated) {
-        setProfile((prev) => (prev ? { ...prev, ...updated } : updated));
-      }
-      toast("Profile updated successfully!");
-    } catch (err: any) {
-      toast(err?.message || "Failed to save profile", "error");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto flex items-center justify-center py-20">
+      <div className="max-w-3xl mx-auto flex items-center justify-center py-24">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  const nameInitial = name
-    ? name.charAt(0).toUpperCase()
-    : profile?.email
-    ? profile.email.charAt(0).toUpperCase()
-    : "B";
+  const displayName = profile?.display_name || "Builder";
+  const username = profile?.username;
+  const initial = displayName.charAt(0).toUpperCase();
+
+  const availabilityLabels: Record<string, { label: string; color: string }> = {
+    open: { label: "Open to Collaborations", color: "text-emerald-600 bg-emerald-500/10 border-emerald-500/20" },
+    looking_for_hackathon: { label: "Looking for Hackathon Squad", color: "text-purple-600 bg-purple-500/10 border-purple-500/20" },
+    looking_for_project: { label: "Looking for Side Project", color: "text-blue-600 bg-blue-500/10 border-blue-500/20" },
+    busy: { label: "Currently Busy", color: "text-gray-500 bg-gray-500/10 border-gray-500/20" },
+  };
+
+  const avail = availabilityLabels[profile?.availability || "open"] || availabilityLabels.open;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 pb-12">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-          Builder Profile
-        </h1>
-        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-          Your profile helps potential teammates understand your technical skills and background.
-        </p>
-      </div>
-
-      {/* Profile Card Header */}
-      <div className="card !p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5">
-        <div className="w-20 h-20 rounded-3xl bg-primary/15 text-primary flex items-center justify-center text-3xl font-black shrink-0">
-          {nameInitial}
-        </div>
-        <div className="text-center sm:text-left flex-1 min-w-0">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                {name || "Student Builder"}
-              </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center sm:justify-start gap-1 mt-0.5">
-                <Mail size={12} /> {profile?.email}
-              </p>
-            </div>
-            <span className="self-center sm:self-start text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
-              Open to Teams
-            </span>
-          </div>
-          <p className="text-xs text-gray-600 dark:text-gray-300 mt-2 font-medium">
-            {headline || "No headline set yet. Tell teammates what you build!"}
-          </p>
-        </div>
-      </div>
-
-      {/* Basic Profile Form */}
-      <div className="card !p-6 space-y-4">
-        <h3 className="text-sm font-bold text-gray-900 dark:text-white">
-          Edit Profile Information
-        </h3>
-
+    <div className="max-w-3xl mx-auto space-y-6 pb-16">
+      {/* Page Title & Action Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <label className="label">Display Name</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="input-field"
-            placeholder="e.g. Alex Chen"
-          />
-        </div>
-
-        <div>
-          <label className="label">Role / Headline</label>
-          <input
-            type="text"
-            value={headline}
-            onChange={(e) => setHeadline(e.target.value)}
-            className="input-field"
-            placeholder="e.g. Full-Stack Developer | React & FastAPI"
-          />
-          <p className="text-[11px] text-gray-400 mt-1">
-            A short one-liner shown on teammate discover cards.
+          <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
+            My Builder Profile
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+            How other student builders and project owners see you on Nexora.
           </p>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04]">
-          <p className="text-xs font-bold text-gray-900 dark:text-white">
-            Looking for structured skill tags & portfolio links?
-          </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
-            The full structured builder profile editor (verified GitHub repos, tech stack tags, role preferences, and hackathon history) is coming in Phase 2.
-          </p>
-        </div>
-
-        <div className="pt-2">
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving}
-            className="btn-primary w-full justify-center text-sm font-bold"
+        <div className="flex items-center gap-2">
+          {username && (
+            <Link
+              href={`/profile/${username}`}
+              className="btn-outline text-xs !py-2 !px-3 flex items-center gap-1.5"
+            >
+              <ExternalLink size={13} />
+              <span>Public View</span>
+            </Link>
+          )}
+          <Link
+            href="/profile/edit"
+            className="btn-primary text-xs !py-2 !px-3.5 flex items-center gap-1.5"
           >
-            {saving ? (
-              <span className="flex items-center gap-2">
-                <Loader2 size={16} className="animate-spin" />
-                Saving...
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                <Save size={16} />
-                Save Profile
-              </span>
-            )}
-          </button>
+            <Edit3 size={13} />
+            <span>Edit Profile</span>
+          </Link>
         </div>
+      </div>
+
+      {/* Main Profile Card */}
+      <div className="card !p-6 sm:!p-8 space-y-6">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
+          <div className="w-20 h-20 rounded-3xl bg-primary/15 text-primary flex items-center justify-center text-3xl font-black shrink-0 shadow-inner">
+            {initial}
+          </div>
+
+          <div className="flex-1 text-center sm:text-left min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {displayName}
+                </h2>
+                {username && (
+                  <p className="text-xs font-semibold text-primary">
+                    @{username}
+                  </p>
+                )}
+              </div>
+
+              <span
+                className={`self-center sm:self-start text-xs font-semibold px-3 py-1 rounded-full border ${avail.color}`}
+              >
+                {avail.label}
+              </span>
+            </div>
+
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-2 font-medium">
+              {profile?.headline || "No headline set yet. Tell prospective teammates what you build!"}
+            </p>
+
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 mt-3 text-xs text-gray-500 dark:text-gray-400">
+              <span className="flex items-center gap-1">
+                <Mail size={13} /> {profile?.email} (private)
+              </span>
+              {profile?.github_url && (
+                <a
+                  href={profile.github_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 hover:text-primary transition-colors"
+                >
+                  <Github size={13} /> GitHub
+                </a>
+              )}
+              {profile?.linkedin_url && (
+                <a
+                  href={profile.linkedin_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 hover:text-primary transition-colors"
+                >
+                  <Linkedin size={13} /> LinkedIn
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Bio */}
+        {profile?.bio && (
+          <div className="pt-4 border-t border-gray-100 dark:border-white/[0.06]">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+              About & Background
+            </h3>
+            <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+              {profile.bio}
+            </p>
+          </div>
+        )}
+
+        {/* Roles */}
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+            Primary Roles
+          </h3>
+          <div className="flex flex-wrap gap-1.5">
+            {profile?.roles && profile.roles.length > 0 ? (
+              profile.roles.map((r) => (
+                <span
+                  key={r}
+                  className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/20"
+                >
+                  {r}
+                </span>
+              ))
+            ) : (
+              <span className="text-xs text-gray-400 italic">No roles selected yet.</span>
+            )}
+          </div>
+        </div>
+
+        {/* Technical Skills */}
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+            Technical Stack & Skills
+          </h3>
+          <div className="flex flex-wrap gap-1.5">
+            {profile?.skills && profile.skills.length > 0 ? (
+              profile.skills.map((s) => (
+                <span
+                  key={s}
+                  className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-white/[0.05] text-gray-800 dark:text-gray-200"
+                >
+                  {s}
+                </span>
+              ))
+            ) : (
+              <span className="text-xs text-gray-400 italic">No skills listed yet.</span>
+            )}
+          </div>
+        </div>
+
+        {/* Interests */}
+        {profile?.interests && profile.interests.length > 0 && (
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+              Interests & Domains
+            </h3>
+            <div className="flex flex-wrap gap-1.5">
+              {profile.interests.map((item) => (
+                <span
+                  key={item}
+                  className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/20"
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
