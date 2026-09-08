@@ -7,6 +7,7 @@ import { DEVELOPMENT_USER_ID } from "@/lib/development";
 import { createApiClient } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { TeammateRequest, ProjectApplication } from "@/lib/types";
+import { LoadingState, ErrorState, EmptyState } from "@/components/ui/DataStates";
 import {
   Inbox,
   Send,
@@ -23,6 +24,7 @@ import {
 export default function RequestsPage() {
   const [activeTab, setActiveTab] = useState<"received" | "sent">("received");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const [receivedRequests, setReceivedRequests] = useState<TeammateRequest[]>([]);
@@ -31,6 +33,7 @@ export default function RequestsPage() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setError(null);
 
     if (!session) {
       setLoading(false);
@@ -40,20 +43,20 @@ export default function RequestsPage() {
     const api = createApiClient(DEVELOPMENT_USER_ID);
     try {
       const [rec, sent, apps] = await Promise.all([
-        api.get<TeammateRequest[]>("/requests?direction=received").catch(() => []),
-        api.get<TeammateRequest[]>("/requests?direction=sent").catch(() => []),
-        api.get<ProjectApplication[]>("/applications/me").catch(() => []),
+        api.get<TeammateRequest[]>("/requests?direction=received"),
+        api.get<TeammateRequest[]>("/requests?direction=sent"),
+        api.get<ProjectApplication[]>("/applications/me"),
       ]);
 
       setReceivedRequests(rec || []);
       setSentRequests(sent || []);
       setMyApplications(apps || []);
     } catch (err: any) {
-      toast("Failed to load requests", "error");
+      setError(err?.message || "Failed to load requests");
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -148,8 +151,14 @@ export default function RequestsPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <LoadingState message="Loading requests and applications..." />
+      ) : error ? (
+        <div className="py-12">
+          <ErrorState
+            title="Failed to Load Requests"
+            message={error}
+            onRetry={loadData}
+          />
         </div>
       ) : activeTab === "received" ? (
         /* Received Tab */

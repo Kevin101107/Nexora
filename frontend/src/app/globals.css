@@ -8,6 +8,10 @@
   * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
   html { font-family: 'Manrope', sans-serif; scroll-behavior: smooth; }
   body { @apply bg-[#f4f1ea] dark:bg-[#0f0f17] text-gray-900 dark:text-white; }
+  :focus-visible {
+    outline: 2px solid #6c63ff;
+    outline-offset: 2px;
+  }
 }
 
 @layer components {

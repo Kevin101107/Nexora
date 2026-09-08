@@ -21,12 +21,10 @@ import {
   Flag,
   FolderGit2,
   Clock,
-  Loader2,
   X,
-  Check,
   Inbox,
-  AlertCircle,
 } from "lucide-react";
+import { LoadingState, ErrorState, EmptyState } from "@/components/ui/DataStates";
 
 type StatusFilter = "all" | "unread" | "read";
 type CategoryFilter =
@@ -272,8 +270,10 @@ export default function NotificationsPage() {
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (
             <button
+              type="button"
               onClick={handleMarkAllAsRead}
-              className="btn-ghost flex items-center gap-1.5 text-xs px-3 py-2 text-gray-700 dark:text-white/70 hover:text-gray-900 dark:hover:text-white"
+              className="btn-ghost flex items-center gap-1.5 text-xs px-3 py-2 text-gray-700 dark:text-white/70 hover:text-gray-900 dark:hover:text-white min-h-[36px]"
+              aria-label="Mark all notifications as read"
               title="Mark all notifications as read"
             >
               <CheckCheck size={15} />
@@ -283,8 +283,10 @@ export default function NotificationsPage() {
 
           {notifications.some((n) => n.is_read) && (
             <button
+              type="button"
               onClick={handleClearRead}
-              className="btn-ghost flex items-center gap-1.5 text-xs px-3 py-2 text-gray-700 dark:text-white/70 hover:text-red-400"
+              className="btn-ghost flex items-center gap-1.5 text-xs px-3 py-2 text-gray-700 dark:text-white/70 hover:text-red-400 min-h-[36px]"
+              aria-label="Clear all read notifications"
               title="Clear all read notifications"
             >
               <Trash2 size={15} />
@@ -293,8 +295,11 @@ export default function NotificationsPage() {
           )}
 
           <button
+            type="button"
             onClick={() => setShowPreferences((p) => !p)}
-            className={`btn-ghost flex items-center gap-1.5 text-xs px-3 py-2 border ${
+            aria-expanded={showPreferences}
+            aria-label="Toggle notification preferences"
+            className={`btn-ghost flex items-center gap-1.5 text-xs px-3 py-2 border min-h-[36px] ${
               showPreferences
                 ? "border-primary text-primary bg-primary/10"
                 : "border-gray-200 dark:border-white/[0.08] text-gray-700 dark:text-white/70"
@@ -309,7 +314,11 @@ export default function NotificationsPage() {
 
       {/* Preferences Drawer / Card */}
       {showPreferences && preferences && (
-        <div className="p-5 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.08] space-y-4 animate-fade-up">
+        <div
+          role="region"
+          aria-label="Notification Preferences"
+          className="p-5 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.08] space-y-4 animate-fade-up"
+        >
           <div className="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-white/[0.06]">
             <div>
               <h3 className="text-sm font-bold text-gray-900 dark:text-white">
@@ -320,8 +329,10 @@ export default function NotificationsPage() {
               </p>
             </div>
             <button
+              type="button"
               onClick={() => setShowPreferences(false)}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              aria-label="Close preferences"
+              className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white"
             >
               <X size={16} />
             </button>
@@ -331,7 +342,7 @@ export default function NotificationsPage() {
             {/* Team Updates */}
             <div className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04]">
               <div className="space-y-0.5 pr-2">
-                <span className="text-xs font-bold text-gray-900 dark:text-white">
+                <span id="pref-team-label" className="text-xs font-bold text-gray-900 dark:text-white">
                   Team Updates
                 </span>
                 <p className="text-[11px] text-gray-500 dark:text-white/40 leading-tight">
@@ -340,15 +351,18 @@ export default function NotificationsPage() {
               </div>
               <button
                 type="button"
+                role="switch"
+                aria-checked={preferences.team_updates}
+                aria-labelledby="pref-team-label"
                 onClick={() => handleTogglePreference("team_updates")}
                 disabled={savingPref}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                   preferences.team_updates ? "bg-primary" : "bg-gray-300 dark:bg-white/20"
                 }`}
               >
                 <span
-                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out mt-0.5 ml-0.5 ${
-                    preferences.team_updates ? "translate-x-4" : "translate-x-0"
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out mt-0.5 ml-0.5 ${
+                    preferences.team_updates ? "translate-x-5" : "translate-x-0"
                   }`}
                 />
               </button>
@@ -357,7 +371,7 @@ export default function NotificationsPage() {
             {/* Task Updates */}
             <div className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04]">
               <div className="space-y-0.5 pr-2">
-                <span className="text-xs font-bold text-gray-900 dark:text-white">
+                <span id="pref-task-label" className="text-xs font-bold text-gray-900 dark:text-white">
                   Task Updates
                 </span>
                 <p className="text-[11px] text-gray-500 dark:text-white/40 leading-tight">
@@ -366,15 +380,18 @@ export default function NotificationsPage() {
               </div>
               <button
                 type="button"
+                role="switch"
+                aria-checked={preferences.task_updates}
+                aria-labelledby="pref-task-label"
                 onClick={() => handleTogglePreference("task_updates")}
                 disabled={savingPref}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                   preferences.task_updates ? "bg-primary" : "bg-gray-300 dark:bg-white/20"
                 }`}
               >
                 <span
-                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out mt-0.5 ml-0.5 ${
-                    preferences.task_updates ? "translate-x-4" : "translate-x-0"
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out mt-0.5 ml-0.5 ${
+                    preferences.task_updates ? "translate-x-5" : "translate-x-0"
                   }`}
                 />
               </button>
@@ -383,7 +400,7 @@ export default function NotificationsPage() {
             {/* Milestone Updates */}
             <div className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04]">
               <div className="space-y-0.5 pr-2">
-                <span className="text-xs font-bold text-gray-900 dark:text-white">
+                <span id="pref-milestone-label" className="text-xs font-bold text-gray-900 dark:text-white">
                   Milestone Updates
                 </span>
                 <p className="text-[11px] text-gray-500 dark:text-white/40 leading-tight">
@@ -392,15 +409,18 @@ export default function NotificationsPage() {
               </div>
               <button
                 type="button"
+                role="switch"
+                aria-checked={preferences.milestone_updates}
+                aria-labelledby="pref-milestone-label"
                 onClick={() => handleTogglePreference("milestone_updates")}
                 disabled={savingPref}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                   preferences.milestone_updates ? "bg-primary" : "bg-gray-300 dark:bg-white/20"
                 }`}
               >
                 <span
-                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out mt-0.5 ml-0.5 ${
-                    preferences.milestone_updates ? "translate-x-4" : "translate-x-0"
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out mt-0.5 ml-0.5 ${
+                    preferences.milestone_updates ? "translate-x-5" : "translate-x-0"
                   }`}
                 />
               </button>
@@ -409,7 +429,7 @@ export default function NotificationsPage() {
             {/* Project Updates */}
             <div className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04]">
               <div className="space-y-0.5 pr-2">
-                <span className="text-xs font-bold text-gray-900 dark:text-white">
+                <span id="pref-project-label" className="text-xs font-bold text-gray-900 dark:text-white">
                   Project Updates
                 </span>
                 <p className="text-[11px] text-gray-500 dark:text-white/40 leading-tight">
@@ -418,15 +438,18 @@ export default function NotificationsPage() {
               </div>
               <button
                 type="button"
+                role="switch"
+                aria-checked={preferences.project_updates}
+                aria-labelledby="pref-project-label"
                 onClick={() => handleTogglePreference("project_updates")}
                 disabled={savingPref}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                   preferences.project_updates ? "bg-primary" : "bg-gray-300 dark:bg-white/20"
                 }`}
               >
                 <span
-                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out mt-0.5 ml-0.5 ${
-                    preferences.project_updates ? "translate-x-4" : "translate-x-0"
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out mt-0.5 ml-0.5 ${
+                    preferences.project_updates ? "translate-x-5" : "translate-x-0"
                   }`}
                 />
               </button>
@@ -440,7 +463,9 @@ export default function NotificationsPage() {
         {/* Status Tabs */}
         <div className="flex items-center gap-1.5 p-1 rounded-xl bg-gray-100 dark:bg-white/[0.04] w-fit">
           <button
+            type="button"
             onClick={() => setStatusFilter("all")}
+            aria-pressed={statusFilter === "all"}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               statusFilter === "all"
                 ? "bg-white dark:bg-primary text-gray-900 dark:text-white shadow-sm"
@@ -450,7 +475,9 @@ export default function NotificationsPage() {
             All
           </button>
           <button
+            type="button"
             onClick={() => setStatusFilter("unread")}
+            aria-pressed={statusFilter === "unread"}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               statusFilter === "unread"
                 ? "bg-white dark:bg-primary text-gray-900 dark:text-white shadow-sm"
@@ -471,7 +498,9 @@ export default function NotificationsPage() {
             )}
           </button>
           <button
+            type="button"
             onClick={() => setStatusFilter("read")}
+            aria-pressed={statusFilter === "read"}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               statusFilter === "read"
                 ? "bg-white dark:bg-primary text-gray-900 dark:text-white shadow-sm"
@@ -493,7 +522,9 @@ export default function NotificationsPage() {
           ].map(({ id, label }) => (
             <button
               key={id}
+              type="button"
               onClick={() => setCategoryFilter(id as CategoryFilter)}
+              aria-pressed={categoryFilter === id}
               className={`px-2.5 py-1 rounded-lg text-xs font-medium shrink-0 transition-all ${
                 categoryFilter === id
                   ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-sm"
@@ -508,34 +539,19 @@ export default function NotificationsPage() {
 
       {/* Notifications List */}
       {loading ? (
-        <div className="py-24 flex flex-col items-center justify-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <span className="text-xs text-gray-500 dark:text-white/40">
-            Loading notifications...
-          </span>
-        </div>
+        <LoadingState message="Loading notifications..." />
       ) : error ? (
-        <div className="p-6 rounded-2xl bg-red-500/10 border border-red-500/20 text-center space-y-3">
-          <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
-          <p className="text-sm font-semibold text-red-400">{error}</p>
-          <button
-            onClick={loadNotifications}
-            className="btn-ghost text-xs text-red-400 hover:text-red-300 underline"
-          >
-            Try again
-          </button>
-        </div>
+        <ErrorState
+          title="Unable to load notifications"
+          message={error}
+          onRetry={loadNotifications}
+        />
       ) : notifications.length === 0 ? (
-        <div className="py-20 text-center rounded-2xl bg-gray-50 dark:bg-white/[0.01] border border-dashed border-gray-200 dark:border-white/[0.06] p-8 space-y-3">
-          <Inbox className="w-10 h-10 text-gray-400 dark:text-white/20 mx-auto" />
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white">
-            {getEmptyMessage()}
-          </h3>
-          <p className="text-xs text-gray-500 dark:text-white/40 max-w-sm mx-auto">
-            When team requests are sent, milestones shift, or tasks are assigned,
-            they will automatically surface right here.
-          </p>
-        </div>
+        <EmptyState
+          icon={Inbox}
+          title={getEmptyMessage()}
+          message="When team requests are sent, milestones shift, or tasks are assigned, they will automatically surface right here."
+        />
       ) : (
         <div className="space-y-2.5">
           {notifications.map((notif) => {
@@ -543,8 +559,17 @@ export default function NotificationsPage() {
             return (
               <div
                 key={notif.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Notification: ${notif.title}. ${notif.message}${isUnread ? " (Unread)" : ""}`}
                 onClick={() => handleNotificationClick(notif)}
-                className={`group relative p-4 sm:p-5 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleNotificationClick(notif);
+                  }
+                }}
+                className={`group relative p-4 sm:p-5 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                   isUnread
                     ? "bg-white dark:bg-[#12121f] border-primary/30 dark:border-primary/40 shadow-sm hover:border-primary"
                     : "bg-white/60 dark:bg-white/[0.02] border-gray-100 dark:border-white/[0.05] hover:bg-white dark:hover:bg-white/[0.04] opacity-80 hover:opacity-100"
@@ -614,11 +639,13 @@ export default function NotificationsPage() {
                   )}
 
                   <button
+                    type="button"
                     onClick={(e) => handleDeleteNotification(e, notif.id)}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors"
+                    className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-gray-400 hover:text-red-400 hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors"
+                    aria-label={`Delete notification: ${notif.title}`}
                     title="Delete notification"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
               </div>

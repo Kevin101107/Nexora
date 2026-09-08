@@ -9,6 +9,8 @@ import { createApiClient } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { Project, ProjectRole, ProjectApplication, RoleCandidateMatch, PublicUserProfile } from "@/lib/types";
 import MatchScoreBadge from "@/components/MatchScoreBadge";
+import Dialog from "@/components/ui/Dialog";
+import { LoadingState, ErrorState } from "@/components/ui/DataStates";
 import {
   FolderGit2,
   Users,
@@ -40,6 +42,8 @@ export default function ProjectDetailPage({
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isNotFound, setIsNotFound] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Application Modal state
@@ -128,11 +132,13 @@ export default function ProjectDetailPage({
   }
 
   const loadProject = useCallback(async () => {
-
     if (session) {
       setCurrentUserId(DEVELOPMENT_USER_ID);
     }
     const api = createApiClient(DEVELOPMENT_USER_ID);
+    setLoading(true);
+    setError(null);
+    setIsNotFound(false);
     try {
       const p = await api.get<Project>(`/projects/${projectId}`);
       setProject(p);
@@ -150,6 +156,12 @@ export default function ProjectDetailPage({
       }
     } catch (err: any) {
       setProject(null);
+      const errMsg = err?.message || "Failed to load project";
+      if (errMsg.includes("404") || errMsg.toLowerCase().includes("not found")) {
+        setIsNotFound(true);
+      } else {
+        setError(errMsg);
+      }
     } finally {
       setLoading(false);
     }
@@ -283,14 +295,22 @@ export default function ProjectDetailPage({
   }
 
   if (loading) {
+    return <LoadingState message="Loading project details..." />;
+  }
+
+  if (error) {
     return (
-      <div className="max-w-4xl mx-auto flex items-center justify-center py-24">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="max-w-xl mx-auto py-16">
+        <ErrorState
+          title="Failed to Load Project"
+          message={error}
+          onRetry={loadProject}
+        />
       </div>
     );
   }
 
-  if (!project) {
+  if (!project || isNotFound) {
     return (
       <div className="max-w-xl mx-auto text-center py-20 space-y-4">
         <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-white/[0.05] text-gray-400 flex items-center justify-center mx-auto">
@@ -300,7 +320,7 @@ export default function ProjectDetailPage({
         <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
           This project may be private, or has been removed by its creator.
         </p>
-        <Link href="/projects" className="btn-primary text-xs !py-2 !px-4">
+        <Link href="/projects" className="btn-primary text-xs !py-2 !px-4 inline-flex items-center">
           Back to Projects
         </Link>
       </div>
@@ -320,6 +340,10 @@ export default function ProjectDetailPage({
     completed: "bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-500/20",
     archived: "bg-gray-100 dark:bg-white/[0.05] text-gray-500 border-gray-200 dark:border-white/[0.08]",
   };
+
+  const hasOpenRoles =
+    project.roles.length === 0 ||
+    project.roles.some((r) => r.slots - r.filled_slots > 0 && r.status === "open");
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-16">
@@ -428,17 +452,27 @@ export default function ProjectDetailPage({
           </div>
 
           {!isOwner && !isMember && (
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedRole(null);
-                setIsApplyModalOpen(true);
-              }}
-              className="btn-primary text-xs !py-1.5 !px-3.5 flex items-center gap-1.5"
-            >
-              <Send size={13} />
-              <span>Apply to Join</span>
-            </button>
+            hasOpenRoles ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedRole(null);
+                  setIsApplyModalOpen(true);
+                }}
+                className="btn-primary text-xs !py-1.5 !px-3.5 flex items-center gap-1.5"
+              >
+                <Send size={13} />
+                <span>Apply to Join</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="btn-outline text-xs !py-1.5 !px-3.5 flex items-center gap-1.5 opacity-50 cursor-not-allowed"
+              >
+                <span>No open roles</span>
+              </button>
+            )
           )}
 
           {isMember && (
@@ -508,20 +542,22 @@ export default function ProjectDetailPage({
                 {member.user?.username && (
                   <Link
                     href={`/profile/${member.user.username}`}
-                    className="text-gray-400 hover:text-primary transition-colors shrink-0"
-                    title="View profile"
+                    className="text-gray-400 hover:text-primary transition-colors shrink-0 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/[0.05]"
+                    title={`View ${memberName}'s profile`}
+                    aria-label={`View ${memberName}'s profile`}
                   >
-                    <ExternalLink size={13} />
+                    <ExternalLink size={14} />
                   </Link>
                 )}
                 {isOwner && member.member_role !== "Owner" && member.user_id !== currentUserId && (
                   <button
                     type="button"
                     onClick={() => handleRemoveMember(member.id, memberName)}
-                    className="text-gray-400 hover:text-red-500 transition-colors p-1 shrink-0"
+                    className="text-gray-400 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 shrink-0"
                     title={`Remove ${memberName} from squad`}
+                    aria-label={`Remove ${memberName} from squad`}
                   >
-                    <Trash2 size={13} />
+                    <Trash2 size={14} />
                   </button>
                 )}
               </div>
@@ -627,7 +663,11 @@ export default function ProjectDetailPage({
                         }}
                         disabled={isFilled || isApplied}
                         className={`btn-primary text-xs !py-1.5 !px-3.5 flex items-center gap-1.5 ${
-                          isApplied ? "!bg-emerald-600 !opacity-100 cursor-default" : ""
+                          isApplied
+                            ? "!bg-emerald-600 !opacity-100 cursor-default"
+                            : isFilled
+                            ? "!bg-gray-200 dark:!bg-white/10 !text-gray-400 cursor-not-allowed border-transparent"
+                            : ""
                         }`}
                       >
                         {isApplied ? (
@@ -635,6 +675,8 @@ export default function ProjectDetailPage({
                             <CheckCircle2 size={13} />
                             <span>Applied</span>
                           </>
+                        ) : isFilled ? (
+                          <span>Role Filled</span>
                         ) : (
                           <>
                             <Send size={13} />
@@ -758,323 +800,301 @@ export default function ProjectDetailPage({
       )}
 
       {/* Apply Modal */}
-      {isApplyModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="card !p-6 max-w-md w-full space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-gray-900 dark:text-white">
-                Apply for {selectedRole ? selectedRole.role_name : project.title}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsApplyModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleApply} className="space-y-4">
-              <div>
-                <label className="label">Note to Project Owner</label>
-                <textarea
-                  value={applyMessage}
-                  onChange={(e) => setApplyMessage(e.target.value)}
-                  rows={3}
-                  className="input-field text-xs"
-                  placeholder="Tell the team lead about your relevant experience, stack familiarity, and why you're excited to collaborate..."
-                  required
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsApplyModalOpen(false)}
-                  className="btn-outline text-xs !py-1.5 !px-3"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingApp}
-                  className="btn-primary text-xs !py-1.5 !px-4"
-                >
-                  {submittingApp ? (
-                    <span className="flex items-center gap-1.5">
-                      <Loader2 size={13} className="animate-spin" />
-                      Submitting...
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1.5">
-                      <Send size={13} />
-                      Submit Application
-                    </span>
-                  )}
-                </button>
-              </div>
-            </form>
+      <Dialog
+        isOpen={isApplyModalOpen}
+        onClose={() => setIsApplyModalOpen(false)}
+        title={`Apply for ${selectedRole ? selectedRole.role_name : project.title}`}
+        maxWidth="max-w-md"
+      >
+        <form onSubmit={handleApply} className="space-y-4">
+          <div>
+            <label htmlFor="apply-project-message" className="label">
+              Note to Project Owner
+            </label>
+            <textarea
+              id="apply-project-message"
+              value={applyMessage}
+              onChange={(e) => setApplyMessage(e.target.value)}
+              rows={3}
+              className="input-field text-xs"
+              placeholder="Tell the team lead about your relevant experience, stack familiarity, and why you're excited to collaborate..."
+              required
+            />
           </div>
-        </div>
-      )}
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setIsApplyModalOpen(false)}
+              className="btn-outline text-xs !py-1.5 !px-3"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submittingApp}
+              className="btn-primary text-xs !py-1.5 !px-4"
+            >
+              {submittingApp ? (
+                <span className="flex items-center gap-1.5">
+                  <Loader2 size={13} className="animate-spin" />
+                  Submitting...
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <Send size={13} />
+                  Submit Application
+                </span>
+              )}
+            </button>
+          </div>
+        </form>
+      </Dialog>
 
       {/* Add Role Modal */}
-      {isAddRoleModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="card !p-6 max-w-md w-full space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-gray-900 dark:text-white">
-                Add Role to Squad
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsAddRoleModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddRole} className="space-y-4">
-              <div>
-                <label className="label">Role Title</label>
-                <input
-                  type="text"
-                  value={newRoleName}
-                  onChange={(e) => setNewRoleName(e.target.value)}
-                  className="input-field text-xs"
-                  placeholder="e.g. Backend Engineer / Go"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="label">Slots Needed</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={newRoleSlots}
-                  onChange={(e) => setNewRoleSlots(parseInt(e.target.value) || 1)}
-                  className="input-field text-xs"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="label">Description (Optional)</label>
-                <input
-                  type="text"
-                  value={newRoleDesc}
-                  onChange={(e) => setNewRoleDesc(e.target.value)}
-                  className="input-field text-xs"
-                  placeholder="e.g. Architect high-throughput REST APIs"
-                />
-              </div>
-
-              <div>
-                <label className="label">Required Skills (Comma separated)</label>
-                <input
-                  type="text"
-                  value={newRoleSkills}
-                  onChange={(e) => setNewRoleSkills(e.target.value)}
-                  className="input-field text-xs"
-                  placeholder="e.g. Go, Docker, Redis"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddRoleModalOpen(false)}
-                  className="btn-outline text-xs !py-1.5 !px-3"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={addingRole}
-                  className="btn-primary text-xs !py-1.5 !px-4"
-                >
-                  {addingRole ? "Adding..." : "Add Role"}
-                </button>
-              </div>
-            </form>
+      <Dialog
+        isOpen={isAddRoleModalOpen}
+        onClose={() => setIsAddRoleModalOpen(false)}
+        title="Add Role to Squad"
+        maxWidth="max-w-md"
+      >
+        <form onSubmit={handleAddRole} className="space-y-4">
+          <div>
+            <label htmlFor="add-role-name" className="label">
+              Role Title
+            </label>
+            <input
+              id="add-role-name"
+              type="text"
+              value={newRoleName}
+              onChange={(e) => setNewRoleName(e.target.value)}
+              className="input-field text-xs"
+              placeholder="e.g. Backend Engineer / Go"
+              required
+            />
           </div>
-        </div>
-      )}
+
+          <div>
+            <label htmlFor="add-role-slots" className="label">
+              Slots Needed
+            </label>
+            <input
+              id="add-role-slots"
+              type="number"
+              min={1}
+              max={10}
+              value={newRoleSlots}
+              onChange={(e) => setNewRoleSlots(parseInt(e.target.value) || 1)}
+              className="input-field text-xs"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="add-role-desc" className="label">
+              Description (Optional)
+            </label>
+            <input
+              id="add-role-desc"
+              type="text"
+              value={newRoleDesc}
+              onChange={(e) => setNewRoleDesc(e.target.value)}
+              className="input-field text-xs"
+              placeholder="e.g. Architect high-throughput REST APIs"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="add-role-skills" className="label">
+              Required Skills (Comma separated)
+            </label>
+            <input
+              id="add-role-skills"
+              type="text"
+              value={newRoleSkills}
+              onChange={(e) => setNewRoleSkills(e.target.value)}
+              className="input-field text-xs"
+              placeholder="e.g. Go, Docker, Redis"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setIsAddRoleModalOpen(false)}
+              className="btn-outline text-xs !py-1.5 !px-3"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={addingRole}
+              className="btn-primary text-xs !py-1.5 !px-4"
+            >
+              {addingRole ? "Adding..." : "Add Role"}
+            </button>
+          </div>
+        </form>
+      </Dialog>
 
       {/* Edit Project Modal */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="card !p-6 max-w-lg w-full space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-gray-900 dark:text-white">
-                Edit Project
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsEditModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+      <Dialog
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Edit Project"
+        maxWidth="max-w-lg"
+      >
+        <form onSubmit={handleSaveEdit} className="space-y-4">
+          <div>
+            <label htmlFor="edit-project-title" className="label">
+              Title
+            </label>
+            <input
+              id="edit-project-title"
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              className="input-field text-xs"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="edit-project-category" className="label">
+                Category
+              </label>
+              <select
+                id="edit-project-category"
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+                className="input-field text-xs"
               >
-                <X size={16} />
-              </button>
+                <option value="hackathon">Hackathon Squad</option>
+                <option value="side_project">Side Project</option>
+                <option value="research">Research / Capstone</option>
+                <option value="startup">Startup Venture</option>
+              </select>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="space-y-4">
-              <div>
-                <label className="label">Title</label>
-                <input
-                  type="text"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  className="input-field text-xs"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Category</label>
-                  <select
-                    value={editCategory}
-                    onChange={(e) => setEditCategory(e.target.value)}
-                    className="input-field text-xs"
-                  >
-                    <option value="hackathon">Hackathon Squad</option>
-                    <option value="side_project">Side Project</option>
-                    <option value="research">Research / Capstone</option>
-                    <option value="startup">Startup Venture</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="label">Status</label>
-                  <select
-                    value={editStatus}
-                    onChange={(e) => setEditStatus(e.target.value)}
-                    className="input-field text-xs"
-                  >
-                    <option value="recruiting">Recruiting</option>
-                    <option value="active">Active</option>
-                    <option value="completed">Completed</option>
-                    <option value="archived">Archived</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="label">Description</label>
-                <textarea
-                  value={editDesc}
-                  onChange={(e) => setEditDesc(e.target.value)}
-                  rows={4}
-                  className="input-field text-xs resize-y"
-                  required
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="btn-outline text-xs !py-1.5 !px-3"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingEdit}
-                  className="btn-primary text-xs !py-1.5 !px-4"
-                >
-                  {savingEdit ? "Saving..." : "Save Changes"}
-                </button>
-              </div>
-            </form>
+            <div>
+              <label htmlFor="edit-project-status" className="label">
+                Status
+              </label>
+              <select
+                id="edit-project-status"
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value)}
+                className="input-field text-xs"
+              >
+                <option value="recruiting">Recruiting</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
           </div>
-        </div>
-      )}
+
+          <div>
+            <label htmlFor="edit-project-desc" className="label">
+              Description
+            </label>
+            <textarea
+              id="edit-project-desc"
+              value={editDesc}
+              onChange={(e) => setEditDesc(e.target.value)}
+              rows={4}
+              className="input-field text-xs resize-y"
+              required
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(false)}
+              className="btn-outline text-xs !py-1.5 !px-3"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={savingEdit}
+              className="btn-primary text-xs !py-1.5 !px-4"
+            >
+              {savingEdit ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </Dialog>
 
       {/* Find Matches Modal */}
-      {isFindMatchesModalOpen && matchingRole && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="card !p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-white/[0.06]">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Sparkles size={16} className="text-primary" />
-                  <h3 className="text-base font-bold text-gray-900 dark:text-white">
-                    Candidate Matches for {matchingRole.role_name}
-                  </h3>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  Ranked by deterministic Match Score V1 (skills, role alignment, availability).
-                </p>
-              </div>
+      <Dialog
+        isOpen={isFindMatchesModalOpen && !!matchingRole}
+        onClose={() => setIsFindMatchesModalOpen(false)}
+        title={`Candidate Matches for ${matchingRole?.role_name || "Role"}`}
+        maxWidth="max-w-2xl"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Ranked by deterministic Match Score V1 (skills, role alignment, availability).
+          </p>
 
-              <button
-                type="button"
-                onClick={() => setIsFindMatchesModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1"
-              >
-                <X size={16} />
-              </button>
+          {loadingCandidates ? (
+            <div className="py-12 flex flex-col items-center justify-center gap-2 text-xs text-gray-400">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <span>Calculating candidate scores...</span>
             </div>
+          ) : roleCandidates.length === 0 ? (
+            <div className="py-12 text-center text-xs text-gray-400 space-y-1">
+              <p className="font-semibold text-gray-600 dark:text-gray-300">No candidates available</p>
+              <p>All candidates are already members of this project or no public builders match.</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-[55vh] overflow-y-auto pr-1">
+              {roleCandidates.map((candidate, idx) => {
+                const candidateName =
+                  candidate.user.display_name || candidate.user.username || "Builder";
+                const initial = candidateName.charAt(0).toUpperCase();
+                const isInvited = invitedUserIds.includes(candidate.user.id);
 
-            {loadingCandidates ? (
-              <div className="py-12 flex flex-col items-center justify-center gap-2 text-xs text-gray-400">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                <span>Calculating candidate scores...</span>
-              </div>
-            ) : roleCandidates.length === 0 ? (
-              <div className="py-12 text-center text-xs text-gray-400 space-y-1">
-                <p className="font-semibold text-gray-600 dark:text-gray-300">No candidates available</p>
-                <p>All candidates are already members of this project or no public builders match.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {roleCandidates.map((candidate, idx) => {
-                  const candidateName =
-                    candidate.user.display_name || candidate.user.username || "Builder";
-                  const initial = candidateName.charAt(0).toUpperCase();
-                  const isInvited = invitedUserIds.includes(candidate.user.id);
-
-                  return (
-                    <div
-                      key={candidate.user.id}
-                      className="p-4 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04] space-y-3"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs font-black text-gray-400 w-4">
-                            #{idx + 1}
-                          </span>
-                          <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary font-bold flex items-center justify-center text-sm shrink-0">
-                            {initial}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="text-sm font-bold text-gray-900 dark:text-white">
-                                {candidateName}
-                              </h4>
-                              {candidate.user.username && (
-                                <Link
-                                  href={`/profile/${candidate.user.username}`}
-                                  target="_blank"
-                                  className="text-[11px] text-primary hover:underline flex items-center gap-0.5"
-                                >
-                                  @{candidate.user.username}
-                                  <ExternalLink size={10} />
-                                </Link>
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
-                              {candidate.user.headline || "Student Builder"}
-                            </p>
-                          </div>
+                return (
+                  <div
+                    key={candidate.user.id}
+                    className="p-4 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04] space-y-3"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-black text-gray-400 w-4">
+                          #{idx + 1}
+                        </span>
+                        <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary font-bold flex items-center justify-center text-sm shrink-0">
+                          {initial}
                         </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                              {candidateName}
+                            </h4>
+                            {candidate.user.username && (
+                              <Link
+                                href={`/profile/${candidate.user.username}`}
+                                target="_blank"
+                                className="text-[11px] text-primary hover:underline flex items-center gap-0.5"
+                              >
+                                @{candidate.user.username}
+                                <ExternalLink size={10} />
+                              </Link>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
+                            {candidate.user.headline || "Student Builder"}
+                          </p>
+                        </div>
+                      </div>
 
-                        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                      <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                        {matchingRole && (
                           <button
                             type="button"
                             onClick={() => handleInviteCandidate(candidate.user, matchingRole)}
@@ -1095,29 +1115,28 @@ export default function ProjectDetailPage({
                               </>
                             )}
                           </button>
-                        </div>
+                        )}
                       </div>
-
-                      {/* Explainable Match Badge */}
-                      <MatchScoreBadge match={candidate.match} showDetails={true} />
                     </div>
-                  );
-                })}
-              </div>
-            )}
 
-            <div className="flex justify-end pt-2 border-t border-gray-100 dark:border-white/[0.06]">
-              <button
-                type="button"
-                onClick={() => setIsFindMatchesModalOpen(false)}
-                className="btn-outline text-xs !py-1.5 !px-4"
-              >
-                Close
-              </button>
+                    <MatchScoreBadge match={candidate.match} showDetails={true} />
+                  </div>
+                );
+              })}
             </div>
+          )}
+
+          <div className="flex justify-end pt-2 border-t border-gray-100 dark:border-white/[0.06]">
+            <button
+              type="button"
+              onClick={() => setIsFindMatchesModalOpen(false)}
+              className="btn-outline text-xs !py-1.5 !px-4"
+            >
+              Close
+            </button>
           </div>
         </div>
-      )}
+      </Dialog>
     </div>
   );
 }

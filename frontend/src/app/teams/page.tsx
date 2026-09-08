@@ -7,6 +7,7 @@ import { DEVELOPMENT_USER_ID } from "@/lib/development";
 import { createApiClient } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { UserTeam } from "@/lib/types";
+import { LoadingState, ErrorState, EmptyState } from "@/components/ui/DataStates";
 import {
   Users,
   Plus,
@@ -24,10 +25,12 @@ import { useCallback } from "react";
 export default function TeamsPage() {
   const [teams, setTeams] = useState<UserTeam[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const loadTeams = useCallback(async () => {
     setLoading(true);
+    setError(null);
 
     if (!session) {
       setLoading(false);
@@ -38,6 +41,7 @@ export default function TeamsPage() {
       const res = await api.get<UserTeam[]>("/teams/me");
       setTeams(res || []);
     } catch (err: any) {
+      setError(err?.message || "Failed to load teams");
       setTeams([]);
     } finally {
       setLoading(false);
@@ -96,29 +100,30 @@ export default function TeamsPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <LoadingState message="Loading your squads..." />
+      ) : error ? (
+        <div className="py-12">
+          <ErrorState
+            title="Failed to Load Teams"
+            message={error}
+            onRetry={loadTeams}
+          />
         </div>
       ) : teams.length === 0 ? (
-        <div className="card !p-12 text-center space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-white/[0.05] text-gray-400 flex items-center justify-center mx-auto">
-            <Users size={24} />
-          </div>
-          <h2 className="text-base font-bold text-gray-900 dark:text-white">
-            You haven&apos;t joined any squads yet
-          </h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
-            Create your own project team or apply to open roles on existing student projects.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <Link href="/projects/new" className="btn-primary text-xs !py-2 !px-4">
-              Post a Project Team
-            </Link>
-            <Link href="/projects" className="btn-outline text-xs !py-2 !px-4">
-              Browse Recruiting Projects
-            </Link>
-          </div>
-        </div>
+        <EmptyState
+          title="You haven't joined any squads yet"
+          message="Create your own project team or apply to open roles on existing student projects."
+          action={
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Link href="/projects/new" className="btn-primary text-xs !py-2 !px-4">
+                Post a Project Team
+              </Link>
+              <Link href="/projects" className="btn-outline text-xs !py-2 !px-4">
+                Browse Recruiting Projects
+              </Link>
+            </div>
+          }
+        />
       ) : (
         <div className="space-y-6">
           {teams.map((team) => (
@@ -191,17 +196,20 @@ export default function TeamsPage() {
                         {m.user?.username && (
                           <Link
                             href={`/profile/${m.user.username}`}
-                            className="text-gray-400 hover:text-primary transition-colors shrink-0"
+                            className="text-gray-400 hover:text-primary transition-colors shrink-0 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/[0.05]"
+                            title={`View ${memberName}'s profile`}
+                            aria-label={`View ${memberName}'s profile`}
                           >
-                            <ExternalLink size={12} />
+                            <ExternalLink size={13} />
                           </Link>
                         )}
                         {team.my_member_role === "Owner" && m.member_role !== "Owner" && m.user_id !== DEVELOPMENT_USER_ID && (
                           <button
                             type="button"
                             onClick={() => handleRemoveMember(team.id, m.id, memberName)}
-                            className="text-gray-400 hover:text-red-500 transition-colors p-1 shrink-0"
+                            className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 shrink-0"
                             title={`Remove ${memberName} from squad`}
+                            aria-label={`Remove ${memberName} from squad`}
                           >
                             <Trash2 size={13} />
                           </button>

@@ -1,7 +1,7 @@
 "use client";
 const session = true;
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { DEVELOPMENT_USER_ID } from "@/lib/development";
 import { createApiClient } from "@/lib/api";
@@ -13,6 +13,8 @@ import {
   UserRoleMatchResponse,
 } from "@/lib/types";
 import MatchScoreBadge from "@/components/MatchScoreBadge";
+import Dialog from "@/components/ui/Dialog";
+import { LoadingState, ErrorState } from "@/components/ui/DataStates";
 import {
   User,
   Loader2,
@@ -39,6 +41,7 @@ export default function PublicProfilePage({
 
   const [profile, setProfile] = useState<PublicUserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [connectMessage, setConnectMessage] = useState("");
@@ -53,31 +56,37 @@ export default function PublicProfilePage({
   const [matchPreview, setMatchPreview] = useState<MatchScoreResult | null>(null);
   const [loadingMatchPreview, setLoadingMatchPreview] = useState(false);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
-      if (session) {
-        setCurrentUserId(DEVELOPMENT_USER_ID);
-      }
-
-      const api = createApiClient(DEVELOPMENT_USER_ID);
-      try {
-        const [p, projs] = await Promise.all([
-          api.get<PublicUserProfile>(`/users/${username}`),
-          api.get<ProjectListItem[]>("/projects").catch(() => []),
-        ]);
-        setProfile(p);
-        const owned = (projs || []).filter((item) => item.owner_id === DEVELOPMENT_USER_ID);
-        setMyOwnedProjects(owned);
-      } catch (err: any) {
-        setProfile(null);
-      } finally {
-        setLoading(false);
-      }
+    if (session) {
+      setCurrentUserId(DEVELOPMENT_USER_ID);
     }
-    load();
+
+    const api = createApiClient(DEVELOPMENT_USER_ID);
+    try {
+      const [p, projs] = await Promise.all([
+        api.get<PublicUserProfile>(`/users/${username}`),
+        api.get<ProjectListItem[]>("/projects").catch(() => []),
+      ]);
+      setProfile(p);
+      const owned = (projs || []).filter((item) => item.owner_id === DEVELOPMENT_USER_ID);
+      setMyOwnedProjects(owned);
+    } catch (err: any) {
+      setProfile(null);
+      const msg = err?.message || "Failed to load profile";
+      if (!msg.includes("404") && !msg.toLowerCase().includes("not found")) {
+        setError(msg);
+      }
+    } finally {
+      setLoading(false);
+    }
   }, [username]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function fetchMatchPreview(userId: string, roleId: string) {
     setLoadingMatchPreview(true);
@@ -181,9 +190,17 @@ export default function PublicProfilePage({
   }
 
   if (loading) {
+    return <LoadingState message="Loading builder profile..." />;
+  }
+
+  if (error) {
     return (
-      <div className="max-w-3xl mx-auto flex items-center justify-center py-24">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="max-w-xl mx-auto py-16 px-4">
+        <ErrorState
+          title="Failed to Load Profile"
+          message={error}
+          onRetry={load}
+        />
       </div>
     );
   }
@@ -199,7 +216,7 @@ export default function PublicProfilePage({
           We couldn&apos;t find any builder profile matching @{username}.
         </p>
         <div>
-          <Link href="/discover" className="btn-primary text-xs !py-2 !px-4">
+          <Link href="/discover" className="btn-primary text-xs !py-2 !px-4 inline-flex items-center">
             Explore All Builders
           </Link>
         </div>
@@ -394,172 +411,170 @@ export default function PublicProfilePage({
       </div>
 
       {/* Connect / Invite Modal */}
-      {isConnectModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="card !p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-white/[0.06]">
-              <div>
-                <h3 className="text-base font-bold text-gray-900 dark:text-white">
-                  Invite {displayName}
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Collaborate on your squad or connect for future projects.
-                </p>
-              </div>
+      <Dialog
+        isOpen={isConnectModalOpen}
+        onClose={() => setIsConnectModalOpen(false)}
+        title={`Invite ${displayName}`}
+        maxWidth="max-w-lg"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Collaborate on your squad or connect for future projects.
+          </p>
+
+          {/* Invite Type Switcher if user has projects */}
+          {myOwnedProjects.length > 0 && (
+            <div className="flex gap-2 p-1 bg-gray-100 dark:bg-white/[0.05] rounded-xl text-xs font-semibold">
               <button
                 type="button"
-                onClick={() => setIsConnectModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                onClick={() => setInviteType("project")}
+                className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  inviteType === "project"
+                    ? "bg-white dark:bg-[#16162a] text-gray-900 dark:text-white shadow-xs"
+                    : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                }`}
               >
-                <X size={16} />
+                <FolderGit2 size={13} className="text-primary" />
+                <span>Invite to Project Squad</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setInviteType("general");
+                  setMatchPreview(null);
+                }}
+                className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  inviteType === "general"
+                    ? "bg-white dark:bg-[#16162a] text-gray-900 dark:text-white shadow-xs"
+                    : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                }`}
+              >
+                <Users size={13} />
+                <span>Direct Connection</span>
               </button>
             </div>
+          )}
 
-            {/* Invite Type Switcher if user has projects */}
-            {myOwnedProjects.length > 0 && (
-              <div className="flex gap-2 p-1 bg-gray-100 dark:bg-white/[0.05] rounded-xl text-xs font-semibold">
-                <button
-                  type="button"
-                  onClick={() => setInviteType("project")}
-                  className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                    inviteType === "project"
-                      ? "bg-white dark:bg-[#16162a] text-gray-900 dark:text-white shadow-xs"
-                      : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
-                  }`}
-                >
-                  <FolderGit2 size={13} className="text-primary" />
-                  <span>Invite to Project Squad</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInviteType("general");
-                    setMatchPreview(null);
-                  }}
-                  className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                    inviteType === "general"
-                      ? "bg-white dark:bg-[#16162a] text-gray-900 dark:text-white shadow-xs"
-                      : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
-                  }`}
-                >
-                  <Users size={13} />
-                  <span>Direct Connection</span>
-                </button>
+          <form onSubmit={handleSendRequest} className="space-y-4">
+            {inviteType === "project" && myOwnedProjects.length > 0 && (
+              <div className="space-y-3 p-3.5 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04]">
+                <div>
+                  <label htmlFor="profile-project-select" className="label">
+                    Select Project
+                  </label>
+                  <select
+                    id="profile-project-select"
+                    value={selectedProjectId}
+                    onChange={(e) => handleProjectChange(e.target.value)}
+                    className="input-field text-xs"
+                  >
+                    {myOwnedProjects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.title} ({p.open_roles_count} open {p.open_roles_count === 1 ? "role" : "roles"})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {(() => {
+                  const currentProj = myOwnedProjects.find((p) => p.id === selectedProjectId);
+                  const openRoles =
+                    currentProj?.roles.filter((r) => r.status === "open" && r.filled_slots < r.slots) || [];
+
+                  if (openRoles.length === 0) {
+                    return (
+                      <p className="text-xs text-amber-500">
+                        This project has no open roles. You can still send a general project invite.
+                      </p>
+                    );
+                  }
+
+                  return (
+                    <div>
+                      <label htmlFor="profile-role-select" className="label">
+                        Target Role
+                      </label>
+                      <select
+                        id="profile-role-select"
+                        value={selectedRoleId}
+                        onChange={(e) => handleRoleChange(e.target.value)}
+                        className="input-field text-xs"
+                      >
+                        <option value="">General Member (No specific role)</option>
+                        {openRoles.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.role_name} ({r.slots - r.filled_slots} spots left)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })()}
+
+                {/* Match Preview */}
+                {loadingMatchPreview ? (
+                  <div className="py-2 flex items-center justify-center gap-2 text-xs text-gray-400">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    <span>Checking role match score...</span>
+                  </div>
+                ) : matchPreview ? (
+                  <div className="space-y-1.5 pt-1">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                      Compatibility Preview:
+                    </p>
+                    <MatchScoreBadge match={matchPreview} showDetails={false} />
+                  </div>
+                ) : null}
               </div>
             )}
 
-            <form onSubmit={handleSendRequest} className="space-y-4">
-              {inviteType === "project" && myOwnedProjects.length > 0 && (
-                <div className="space-y-3 p-3.5 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04]">
-                  <div>
-                    <label className="label">Select Project</label>
-                    <select
-                      value={selectedProjectId}
-                      onChange={(e) => handleProjectChange(e.target.value)}
-                      className="input-field text-xs"
-                    >
-                      {myOwnedProjects.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.title} ({p.open_roles_count} open {p.open_roles_count === 1 ? "role" : "roles"})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+            <div>
+              <label htmlFor="profile-connect-message" className="label">
+                Personalized Note
+              </label>
+              <textarea
+                id="profile-connect-message"
+                value={connectMessage}
+                onChange={(e) => setConnectMessage(e.target.value)}
+                rows={3}
+                className="input-field text-xs"
+                placeholder={
+                  inviteType === "project"
+                    ? "Tell the builder why they'd be a great fit for your squad..."
+                    : "Introduce yourself and what kind of projects or hackathons you want to build together..."
+                }
+              />
+            </div>
 
-                  {(() => {
-                    const currentProj = myOwnedProjects.find((p) => p.id === selectedProjectId);
-                    const openRoles =
-                      currentProj?.roles.filter((r) => r.status === "open" && r.filled_slots < r.slots) || [];
-
-                    if (openRoles.length === 0) {
-                      return (
-                        <p className="text-xs text-amber-500">
-                          This project has no open roles. You can still send a general project invite.
-                        </p>
-                      );
-                    }
-
-                    return (
-                      <div>
-                        <label className="label">Target Role</label>
-                        <select
-                          value={selectedRoleId}
-                          onChange={(e) => handleRoleChange(e.target.value)}
-                          className="input-field text-xs"
-                        >
-                          <option value="">General Member (No specific role)</option>
-                          {openRoles.map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.role_name} ({r.slots - r.filled_slots} spots left)
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Match Preview */}
-                  {loadingMatchPreview ? (
-                    <div className="py-2 flex items-center justify-center gap-2 text-xs text-gray-400">
-                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                      <span>Checking role match score...</span>
-                    </div>
-                  ) : matchPreview ? (
-                    <div className="space-y-1.5 pt-1">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                        Compatibility Preview:
-                      </p>
-                      <MatchScoreBadge match={matchPreview} showDetails={false} />
-                    </div>
-                  ) : null}
-                </div>
-              )}
-
-              <div>
-                <label className="label">Personalized Note</label>
-                <textarea
-                  value={connectMessage}
-                  onChange={(e) => setConnectMessage(e.target.value)}
-                  rows={3}
-                  className="input-field text-xs"
-                  placeholder={
-                    inviteType === "project"
-                      ? "Tell the builder why they'd be a great fit for your squad..."
-                      : "Introduce yourself and what kind of projects or hackathons you want to build together..."
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-white/[0.06]">
-                <button
-                  type="button"
-                  onClick={() => setIsConnectModalOpen(false)}
-                  className="btn-outline text-xs !py-1.5 !px-3"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={sendingRequest}
-                  className="btn-primary text-xs !py-1.5 !px-4"
-                >
-                  {sendingRequest ? (
-                    <span className="flex items-center gap-1.5">
-                      <Loader2 size={13} className="animate-spin" />
-                      Sending...
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1.5">
-                      <Send size={13} />
-                      Send Invitation
-                    </span>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-white/[0.06]">
+              <button
+                type="button"
+                onClick={() => setIsConnectModalOpen(false)}
+                className="btn-outline text-xs !py-1.5 !px-3"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={sendingRequest}
+                className="btn-primary text-xs !py-1.5 !px-4"
+              >
+                {sendingRequest ? (
+                  <span className="flex items-center gap-1.5">
+                    <Loader2 size={13} className="animate-spin" />
+                    Sending...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5">
+                    <Send size={13} />
+                    Send Invitation
+                  </span>
+                )}
+              </button>
+            </div>
+          </form>
         </div>
-      )}
+      </Dialog>
     </div>
   );
 }

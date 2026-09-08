@@ -4,22 +4,34 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Compass, FolderGit2, Users, Inbox, User, Sun, Moon,
-  ChevronLeft, ChevronRight, Bell
+  ChevronLeft, ChevronRight, Bell, MoreHorizontal, X
 } from "lucide-react";
 import { DEVELOPMENT_USER_ID } from "@/lib/development";
 import { createApiClient } from "@/lib/api";
 import { UnreadCountResponse } from "@/lib/types";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 
-const NAV = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ComponentType<any>;
+  badge?: boolean;
+}
+
+const PRIMARY_NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/discover",  label: "Discover",  icon: Compass },
   { href: "/projects",  label: "Projects",  icon: FolderGit2 },
   { href: "/teams",     label: "Teams",     icon: Users },
-  { href: "/requests",  label: "Requests",  icon: Inbox },
-  { href: "/notifications", label: "Inbox", icon: Bell, badge: true },
-  { href: "/profile",   label: "Profile",   icon: User },
 ];
+
+const SECONDARY_NAV: NavItem[] = [
+  { href: "/requests",      label: "Requests", icon: Inbox },
+  { href: "/notifications", label: "Inbox",    icon: Bell, badge: true },
+  { href: "/profile",       label: "Profile",  icon: User },
+];
+
+const NAV: NavItem[] = [...PRIMARY_NAV, ...SECONDARY_NAV];
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -27,6 +39,9 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
 
   const fetchUnreadCount = useCallback(() => {
     const api = createApiClient(DEVELOPMENT_USER_ID);
@@ -49,6 +64,24 @@ export default function Sidebar() {
   useEffect(() => {
     fetchUnreadCount();
   }, [pathname, fetchUnreadCount]);
+
+  // Close more menu when route changes
+  useEffect(() => {
+    setMoreOpen(false);
+  }, [pathname]);
+
+  // Handle escape key to close more menu
+  useEffect(() => {
+    if (!moreOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMoreOpen(false);
+        moreButtonRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [moreOpen]);
 
   useEffect(() => {
     // Theme Initializer
@@ -86,6 +119,8 @@ export default function Sidebar() {
     ? profile.email.charAt(0).toUpperCase()
     : "S";
 
+  const isSecondaryActive = SECONDARY_NAV.some(({ href }) => pathname.startsWith(href));
+
   return (
     <>
       {/* ── Desktop Sidebar ──────────────────────────────── */}
@@ -100,8 +135,10 @@ export default function Sidebar() {
             </span>
           )}
           <button
+            type="button"
             onClick={toggleCollapse}
             className="p-1.5 rounded-lg text-gray-400 dark:text-white/30 hover:bg-gray-100 dark:hover:bg-white/[0.06] hover:text-gray-900 dark:hover:text-white transition-all mx-auto"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
@@ -109,7 +146,7 @@ export default function Sidebar() {
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        <nav aria-label="Sidebar navigation" className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {NAV.map(({ href, label, icon: Icon, badge }) => {
             const active = pathname.startsWith(href);
             const showBadge = badge && unreadCount > 0;
@@ -117,6 +154,7 @@ export default function Sidebar() {
               <Link
                 key={href}
                 href={href}
+                aria-label={label}
                 className={`flex items-center rounded-xl text-sm font-semibold transition-all duration-200 ${
                   collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5"
                 } ${
@@ -177,51 +215,144 @@ export default function Sidebar() {
             className={`btn-ghost w-full hover:text-gray-900 dark:hover:text-white text-gray-700 dark:text-white/50 ${
               collapsed ? "justify-center p-2.5" : "justify-start gap-3 text-sm"
             }`}
+            aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
             title={dark ? "Switch to light mode" : "Switch to dark mode"}
           >
             {dark ? <Sun size={16} /> : <Moon size={16} />}
             {!collapsed && <span className="animate-fade-up">{dark ? "Light mode" : "Dark mode"}</span>}
           </button>
-
         </div>
       </aside>
 
       {/* ── Mobile Navigation ────────────────────────────── */}
+      {/* Backdrop for More sheet */}
+      {moreOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-xs transition-opacity"
+          onClick={() => {
+            setMoreOpen(false);
+            moreButtonRef.current?.focus();
+          }}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* More sheet / popover */}
+      {moreOpen && (
+        <div
+          ref={moreMenuRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="More navigation destinations"
+          className="md:hidden fixed bottom-20 left-4 right-4 z-50 p-4 rounded-3xl bg-white dark:bg-[#12121f] border border-gray-200 dark:border-white/[0.1] shadow-2xl space-y-2 max-w-sm mx-auto animate-fade-up"
+        >
+          <div className="flex items-center justify-between px-2 pb-2 border-b border-gray-100 dark:border-white/[0.06]">
+            <span className="text-xs font-bold text-gray-500 dark:text-white/40 uppercase tracking-wider">
+              More Destinations
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setMoreOpen(false);
+                moreButtonRef.current?.focus();
+              }}
+              aria-label="Close menu"
+              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white min-h-[36px] min-w-[36px] flex items-center justify-center"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="space-y-1">
+            {SECONDARY_NAV.map(({ href, label, icon: Icon, badge }) => {
+              const active = pathname.startsWith(href);
+              const showBadge = badge && unreadCount > 0;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMoreOpen(false)}
+                  className={`flex items-center justify-between px-3.5 py-3 rounded-2xl text-sm font-semibold transition-all min-h-[44px] ${
+                    active
+                      ? "bg-primary/10 text-primary font-bold"
+                      : "text-gray-700 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/[0.06]"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon size={18} strokeWidth={active ? 2.5 : 2} />
+                    <span>{label}</span>
+                  </div>
+                  {showBadge && (
+                    <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-primary text-white">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+
+          <div className="pt-2.5 border-t border-gray-100 dark:border-white/[0.06] flex items-center justify-between px-2">
+            <button
+              type="button"
+              onClick={toggleDark}
+              className="btn-ghost flex items-center gap-2 text-xs py-2 px-3 text-gray-700 dark:text-white/70 hover:text-gray-900 dark:hover:text-white min-h-[44px]"
+              aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {dark ? <Sun size={16} /> : <Moon size={16} />}
+              <span>{dark ? "Light mode" : "Dark mode"}</span>
+            </button>
+            <span className="text-[11px] font-medium text-gray-400 dark:text-white/40">Local demo mode</span>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Bottom Tab Bar */}
       <div className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 dark:border-white/[0.08] bg-white/95 dark:bg-[#0f0f17]/95 backdrop-blur">
-        <nav className="grid grid-cols-7 gap-1 px-1 py-2">
-          {NAV.map(({ href, label, icon: Icon, badge }) => {
+        <nav aria-label="Mobile navigation" className="grid grid-cols-5 gap-1 px-2 py-1.5">
+          {PRIMARY_NAV.map(({ href, label, icon: Icon }) => {
             const active = pathname.startsWith(href);
-            const showBadge = badge && unreadCount > 0;
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] font-semibold ${
+                className={`flex flex-col items-center justify-center gap-1 rounded-2xl py-2 min-h-[48px] text-[11px] font-semibold transition-all ${
                   active
-                    ? "text-primary bg-primary/10 dark:bg-primary/15"
-                    : "text-gray-700 dark:text-white/60"
+                    ? "text-primary bg-primary/10 dark:bg-primary/15 font-bold"
+                    : "text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white"
                 }`}
               >
-                <div className="relative">
-                  <Icon size={16} />
-                  {showBadge && (
-                    <span className="absolute -top-1 -right-2 px-1 min-w-[14px] h-3.5 flex items-center justify-center text-[8px] font-bold rounded-full bg-primary text-white">
-                      {unreadCount > 9 ? "9+" : unreadCount}
-                    </span>
-                  )}
-                </div>
-                <span className="leading-none truncate max-w-full">{label}</span>
+                <Icon size={18} strokeWidth={active ? 2.5 : 2} />
+                <span className="leading-none truncate">{label}</span>
               </Link>
             );
           })}
-        </nav>
-        <div className="flex items-center justify-between px-3 pb-2 border-t border-gray-100 dark:border-white/[0.04] pt-1">
-          <button type="button" onClick={toggleDark} className="btn-ghost text-xs px-2 py-1.5 text-gray-700 dark:text-white/50">
-            {dark ? <Sun size={14} /> : <Moon size={14} />}
-            {dark ? "Light" : "Dark"}
+
+          {/* 5th Tab: More Button */}
+          <button
+            ref={moreButtonRef}
+            type="button"
+            onClick={() => setMoreOpen((prev) => !prev)}
+            aria-expanded={moreOpen}
+            aria-haspopup="dialog"
+            aria-label="More navigation destinations"
+            className={`flex flex-col items-center justify-center gap-1 rounded-2xl py-2 min-h-[48px] text-[11px] font-semibold transition-all ${
+              isSecondaryActive || moreOpen
+                ? "text-primary bg-primary/10 dark:bg-primary/15 font-bold"
+                : "text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white"
+            }`}
+          >
+            <div className="relative">
+              <MoreHorizontal size={18} strokeWidth={isSecondaryActive || moreOpen ? 2.5 : 2} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-2 px-1 min-w-[14px] h-3.5 flex items-center justify-center text-[8px] font-bold rounded-full bg-primary text-white">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </div>
+            <span className="leading-none truncate">More</span>
           </button>
-          <span className="text-[10px] font-semibold text-gray-400">Local demo mode</span>
-        </div>
+        </nav>
       </div>
     </>
   );

@@ -18,6 +18,8 @@ import {
   TaskPriority,
   MilestoneStatus,
 } from "@/lib/types";
+import Dialog from "@/components/ui/Dialog";
+import { LoadingState, ErrorState, EmptyState } from "@/components/ui/DataStates";
 import {
   Kanban,
   LayoutDashboard,
@@ -56,6 +58,7 @@ export default function ProjectWorkspacePage({
   const [currentUserId, setCurrentUserId] = useState<string>(DEVELOPMENT_USER_ID);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const [workspace, setWorkspace] = useState<WorkspaceOverview | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -92,6 +95,8 @@ export default function ProjectWorkspacePage({
   const loadWorkspace = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
+      setAccessDenied(false);
       const api = createApiClient(currentUserId);
 
       const [wsData, tasksData, milestonesData, activityData] = await Promise.all([
@@ -107,15 +112,15 @@ export default function ProjectWorkspacePage({
       setActivities(activityData);
       setAccessDenied(false);
     } catch (err: any) {
-      if (err.status === 403) {
+      if (err?.status === 403) {
         setAccessDenied(true);
       } else {
-        toast(err.message || "Failed to load project workspace", "error");
+        setError(err?.message || "Failed to load project workspace");
       }
     } finally {
       setLoading(false);
     }
-  }, [projectId, currentUserId, toast]);
+  }, [projectId, currentUserId]);
 
   useEffect(() => {
     loadWorkspace();
@@ -311,15 +316,10 @@ export default function ProjectWorkspacePage({
   const doneTasks = useMemo(() => filteredTasks.filter((t) => t.status === "done"), [filteredTasks]);
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="text-xs text-gray-500 dark:text-gray-400">Loading team workspace...</p>
-      </div>
-    );
+    return <LoadingState message="Loading team workspace..." />;
   }
 
-  if (accessDenied || !workspace) {
+  if (accessDenied) {
     return (
       <div className="max-w-xl mx-auto py-16 px-4">
         <div className="card !p-8 text-center space-y-4 border-red-500/20 bg-red-500/[0.03]">
@@ -336,6 +336,18 @@ export default function ProjectWorkspacePage({
             </Link>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (error || !workspace) {
+    return (
+      <div className="max-w-xl mx-auto py-16 px-4">
+        <ErrorState
+          title="Failed to Load Workspace"
+          message={error || "An unexpected error occurred while loading the workspace."}
+          onRetry={loadWorkspace}
+        />
       </div>
     );
   }
@@ -678,7 +690,8 @@ export default function ProjectWorkspacePage({
               <select
                 value={filterMilestoneId}
                 onChange={(e) => setFilterMilestoneId(e.target.value)}
-                className="text-xs px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-white/[0.05] text-gray-700 dark:text-gray-300 border-0 focus:ring-1 focus:ring-primary"
+                aria-label="Filter by milestone"
+                className="text-xs px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-white/[0.05] text-gray-700 dark:text-gray-300 border-0 focus:ring-1 focus:ring-primary max-w-[170px] truncate"
               >
                 <option value="all">All Milestones</option>
                 {milestones.map((ms) => (
@@ -692,6 +705,7 @@ export default function ProjectWorkspacePage({
               <select
                 value={filterPriority}
                 onChange={(e) => setFilterPriority(e.target.value)}
+                aria-label="Filter by priority"
                 className="text-xs px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-white/[0.05] text-gray-700 dark:text-gray-300 border-0 focus:ring-1 focus:ring-primary"
               >
                 <option value="all">All Priorities</option>
@@ -752,9 +766,9 @@ export default function ProjectWorkspacePage({
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 min-w-0">
               {/* Column 1: TODO */}
-              <div className="space-y-3">
+              <div className="space-y-3 min-w-0">
                 <div className="flex items-center justify-between px-1">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-gray-400" />
@@ -778,7 +792,7 @@ export default function ProjectWorkspacePage({
               </div>
 
               {/* Column 2: IN PROGRESS */}
-              <div className="space-y-3">
+              <div className="space-y-3 min-w-0">
                 <div className="flex items-center justify-between px-1">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
@@ -802,7 +816,7 @@ export default function ProjectWorkspacePage({
               </div>
 
               {/* Column 3: DONE */}
-              <div className="space-y-3">
+              <div className="space-y-3 min-w-0">
                 <div className="flex items-center justify-between px-1">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
@@ -1138,268 +1152,268 @@ export default function ProjectWorkspacePage({
       )}
 
       {/* TASK MODAL (Create / Edit) */}
-      {isTaskModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="card !p-6 w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-white/[0.06]">
-              <h3 className="text-base font-bold text-gray-900 dark:text-white">
-                {editingTask ? (isOwner ? "Edit Task" : "Task Details") : "Create New Task"}
-              </h3>
+      <Dialog
+        isOpen={isTaskModalOpen}
+        onClose={() => setIsTaskModalOpen(false)}
+        title={editingTask ? (isOwner ? "Edit Task" : "Task Details") : "Create New Task"}
+        maxWidth="max-w-lg"
+      >
+        <form onSubmit={handleSaveTask} className="space-y-4">
+          <div>
+            <label htmlFor="task-modal-title" className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+              Title
+            </label>
+            <input
+              id="task-modal-title"
+              type="text"
+              disabled={!isOwner && !!editingTask}
+              value={taskTitle}
+              onChange={(e) => setTaskTitle(e.target.value)}
+              placeholder="e.g. Implement OAuth login API"
+              className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08] disabled:opacity-60"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="task-modal-desc" className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+              Description
+            </label>
+            <textarea
+              id="task-modal-desc"
+              disabled={!isOwner && !!editingTask}
+              value={taskDesc}
+              onChange={(e) => setTaskDesc(e.target.value)}
+              placeholder="Task details and acceptance criteria..."
+              rows={3}
+              className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08] disabled:opacity-60"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="task-modal-status" className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                Status
+              </label>
+              <select
+                id="task-modal-status"
+                value={taskStatus}
+                onChange={(e) => setTaskStatus(e.target.value as TaskStatus)}
+                className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08]"
+              >
+                <option value="todo">To Do</option>
+                <option value="in_progress">In Progress</option>
+                <option value="done">Done</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="task-modal-priority" className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                Priority
+              </label>
+              <select
+                id="task-modal-priority"
+                disabled={!isOwner && !!editingTask}
+                value={taskPriority}
+                onChange={(e) => setTaskPriority(e.target.value as TaskPriority)}
+                className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08] disabled:opacity-60"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="task-modal-assignee" className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                Assignee
+              </label>
+              <select
+                id="task-modal-assignee"
+                disabled={!isOwner && !!editingTask}
+                value={taskAssigneeId}
+                onChange={(e) => setTaskAssigneeId(e.target.value)}
+                className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08] disabled:opacity-60"
+              >
+                <option value="">Unassigned</option>
+                {workspace.members.map((m) => (
+                  <option key={m.user_id} value={m.user_id}>
+                    {m.user?.display_name || m.user?.username || m.user_id} ({m.member_role})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="task-modal-milestone" className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                Milestone
+              </label>
+              <select
+                id="task-modal-milestone"
+                disabled={!isOwner && !!editingTask}
+                value={taskMilestoneId}
+                onChange={(e) => setTaskMilestoneId(e.target.value)}
+                className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08] disabled:opacity-60"
+              >
+                <option value="">None (Independent Task)</option>
+                {milestones.map((ms) => (
+                  <option key={ms.id} value={ms.id}>
+                    {ms.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="task-modal-due-date" className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+              Due Date
+            </label>
+            <input
+              id="task-modal-due-date"
+              type="date"
+              disabled={!isOwner && !!editingTask}
+              value={taskDueDate}
+              onChange={(e) => setTaskDueDate(e.target.value)}
+              className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08] disabled:opacity-60"
+            />
+          </div>
+
+          <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-white/[0.06]">
+            {editingTask && isOwner ? (
+              <button
+                type="button"
+                onClick={() => handleDeleteTask(editingTask.id)}
+                className="text-xs text-red-500 hover:underline flex items-center gap-1 font-semibold"
+              >
+                <Trash2 size={13} />
+                <span>Delete Task</span>
+              </button>
+            ) : <div />}
+
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setIsTaskModalOpen(false)}
-                className="text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                className="btn-outline text-xs !py-1.5 !px-3.5"
               >
-                <X size={18} />
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={savingTask}
+                className="btn-primary text-xs !py-1.5 !px-4 flex items-center gap-1.5"
+              >
+                {savingTask && <Loader2 size={13} className="animate-spin" />}
+                <span>{editingTask ? "Save Changes" : "Create Task"}</span>
               </button>
             </div>
-
-            <form onSubmit={handleSaveTask} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  disabled={!isOwner && !!editingTask}
-                  value={taskTitle}
-                  onChange={(e) => setTaskTitle(e.target.value)}
-                  placeholder="e.g. Implement OAuth login API"
-                  className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08] disabled:opacity-60"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Description
-                </label>
-                <textarea
-                  disabled={!isOwner && !!editingTask}
-                  value={taskDesc}
-                  onChange={(e) => setTaskDesc(e.target.value)}
-                  placeholder="Task details and acceptance criteria..."
-                  rows={3}
-                  className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08] disabled:opacity-60"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Status
-                  </label>
-                  <select
-                    value={taskStatus}
-                    onChange={(e) => setTaskStatus(e.target.value as TaskStatus)}
-                    className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08]"
-                  >
-                    <option value="todo">To Do</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="done">Done</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Priority
-                  </label>
-                  <select
-                    disabled={!isOwner && !!editingTask}
-                    value={taskPriority}
-                    onChange={(e) => setTaskPriority(e.target.value as TaskPriority)}
-                    className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08] disabled:opacity-60"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Assignee
-                  </label>
-                  <select
-                    disabled={!isOwner && !!editingTask}
-                    value={taskAssigneeId}
-                    onChange={(e) => setTaskAssigneeId(e.target.value)}
-                    className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08] disabled:opacity-60"
-                  >
-                    <option value="">Unassigned</option>
-                    {workspace.members.map((m) => (
-                      <option key={m.user_id} value={m.user_id}>
-                        {m.user?.display_name || m.user?.username || m.user_id} ({m.member_role})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Milestone
-                  </label>
-                  <select
-                    disabled={!isOwner && !!editingTask}
-                    value={taskMilestoneId}
-                    onChange={(e) => setTaskMilestoneId(e.target.value)}
-                    className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08] disabled:opacity-60"
-                  >
-                    <option value="">None (Independent Task)</option>
-                    {milestones.map((ms) => (
-                      <option key={ms.id} value={ms.id}>
-                        {ms.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Due Date
-                </label>
-                <input
-                  type="date"
-                  disabled={!isOwner && !!editingTask}
-                  value={taskDueDate}
-                  onChange={(e) => setTaskDueDate(e.target.value)}
-                  className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08] disabled:opacity-60"
-                />
-              </div>
-
-              <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-white/[0.06]">
-                {editingTask && isOwner ? (
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteTask(editingTask.id)}
-                    className="text-xs text-red-500 hover:underline flex items-center gap-1 font-semibold"
-                  >
-                    <Trash2 size={13} />
-                    <span>Delete Task</span>
-                  </button>
-                ) : <div />}
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsTaskModalOpen(false)}
-                    className="btn-outline text-xs !py-1.5 !px-3.5"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={savingTask}
-                    className="btn-primary text-xs !py-1.5 !px-4 flex items-center gap-1.5"
-                  >
-                    {savingTask && <Loader2 size={13} className="animate-spin" />}
-                    <span>{editingTask ? "Save Changes" : "Create Task"}</span>
-                  </button>
-                </div>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+        </form>
+      </Dialog>
 
       {/* MILESTONE MODAL (Create / Edit) */}
-      {isMilestoneModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="card !p-6 w-full max-w-md space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-white/[0.06]">
-              <h3 className="text-base font-bold text-gray-900 dark:text-white">
-                {editingMilestone ? "Edit Milestone" : "Create New Milestone"}
-              </h3>
+      <Dialog
+        isOpen={isMilestoneModalOpen}
+        onClose={() => setIsMilestoneModalOpen(false)}
+        title={editingMilestone ? "Edit Milestone" : "Create New Milestone"}
+        maxWidth="max-w-md"
+      >
+        <form onSubmit={handleSaveMilestone} className="space-y-4">
+          <div>
+            <label htmlFor="milestone-modal-title" className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+              Title
+            </label>
+            <input
+              id="milestone-modal-title"
+              type="text"
+              value={milestoneTitle}
+              onChange={(e) => setMilestoneTitle(e.target.value)}
+              placeholder="e.g. MVP Launch or Alpha Demo"
+              className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08]"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="milestone-modal-desc" className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+              Description
+            </label>
+            <textarea
+              id="milestone-modal-desc"
+              value={milestoneDesc}
+              onChange={(e) => setMilestoneDesc(e.target.value)}
+              placeholder="Milestone goals and outcomes..."
+              rows={3}
+              className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08]"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="milestone-modal-status" className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                Status
+              </label>
+              <select
+                id="milestone-modal-status"
+                value={milestoneStatus}
+                onChange={(e) => setMilestoneStatus(e.target.value as MilestoneStatus)}
+                className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08]"
+              >
+                <option value="planned">Planned</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="milestone-modal-due-date" className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                Due Date
+              </label>
+              <input
+                id="milestone-modal-due-date"
+                type="date"
+                value={milestoneDueDate}
+                onChange={(e) => setMilestoneDueDate(e.target.value)}
+                className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08]"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-white/[0.06]">
+            {editingMilestone && isOwner ? (
+              <button
+                type="button"
+                onClick={() => handleDeleteMilestone(editingMilestone.id)}
+                className="text-xs text-red-500 hover:underline flex items-center gap-1 font-semibold"
+              >
+                <Trash2 size={13} />
+                <span>Delete</span>
+              </button>
+            ) : <div />}
+
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setIsMilestoneModalOpen(false)}
-                className="text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                className="btn-outline text-xs !py-1.5 !px-3.5"
               >
-                <X size={18} />
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={savingMilestone}
+                className="btn-primary text-xs !py-1.5 !px-4 flex items-center gap-1.5"
+              >
+                {savingMilestone && <Loader2 size={13} className="animate-spin" />}
+                <span>{editingMilestone ? "Save Milestone" : "Create Milestone"}</span>
               </button>
             </div>
-
-            <form onSubmit={handleSaveMilestone} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  value={milestoneTitle}
-                  onChange={(e) => setMilestoneTitle(e.target.value)}
-                  placeholder="e.g. MVP Launch or Alpha Demo"
-                  className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08]"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Description
-                </label>
-                <textarea
-                  value={milestoneDesc}
-                  onChange={(e) => setMilestoneDesc(e.target.value)}
-                  placeholder="Milestone goals and outcomes..."
-                  rows={3}
-                  className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Status
-                  </label>
-                  <select
-                    value={milestoneStatus}
-                    onChange={(e) => setMilestoneStatus(e.target.value as MilestoneStatus)}
-                    className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08]"
-                  >
-                    <option value="planned">Planned</option>
-                    <option value="active">Active</option>
-                    <option value="completed">Completed</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Due Date
-                  </label>
-                  <input
-                    type="date"
-                    value={milestoneDueDate}
-                    onChange={(e) => setMilestoneDueDate(e.target.value)}
-                    className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 dark:border-white/[0.06]">
-                <button
-                  type="button"
-                  onClick={() => setIsMilestoneModalOpen(false)}
-                  className="btn-outline text-xs !py-1.5 !px-3.5"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingMilestone}
-                  className="btn-primary text-xs !py-1.5 !px-4 flex items-center gap-1.5"
-                >
-                  {savingMilestone && <Loader2 size={13} className="animate-spin" />}
-                  <span>{editingMilestone ? "Save Milestone" : "Create Milestone"}</span>
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+        </form>
+      </Dialog>
     </div>
   );
 
@@ -1418,8 +1432,17 @@ export default function ProjectWorkspacePage({
     return (
       <div
         key={t.id}
-        className="card !p-4 space-y-3 border-gray-100 dark:border-white/[0.05] hover:border-primary/30 transition-all cursor-pointer shadow-sm group"
+        role="button"
+        tabIndex={0}
+        aria-label={`Task: ${t.title}. Status: ${t.status.replace("_", " ")}. Click to view or edit.`}
+        className="card !p-4 space-y-3 border-gray-100 dark:border-white/[0.05] hover:border-primary/30 transition-all cursor-pointer shadow-sm group min-w-0 max-w-full break-words"
         onClick={() => handleOpenEditTask(t)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleOpenEditTask(t);
+          }
+        }}
       >
         <div className="flex items-start justify-between gap-2">
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border capitalize ${priorityColor}`}>
@@ -1464,20 +1487,22 @@ export default function ProjectWorkspacePage({
                 <button
                   type="button"
                   title="Mark Done"
+                  aria-label="Mark Done"
                   onClick={() => handleQuickStatusChange(t, "done")}
-                  className="p-1 rounded hover:bg-emerald-500/15 text-gray-400 hover:text-emerald-500 transition-colors"
+                  className="p-1.5 rounded hover:bg-emerald-500/15 text-gray-400 hover:text-emerald-500 transition-colors"
                 >
-                  <Check size={13} />
+                  <Check size={14} />
                 </button>
               )}
               {t.status === "todo" && (
                 <button
                   type="button"
                   title="Move to In Progress"
+                  aria-label="Move to In Progress"
                   onClick={() => handleQuickStatusChange(t, "in_progress")}
-                  className="p-1 rounded hover:bg-amber-500/15 text-gray-400 hover:text-amber-500 transition-colors"
+                  className="p-1.5 rounded hover:bg-amber-500/15 text-gray-400 hover:text-amber-500 transition-colors"
                 >
-                  <Clock size={13} />
+                  <Clock size={14} />
                 </button>
               )}
             </div>
