@@ -194,3 +194,8 @@ Follow this guided script to explore the complete Nexora workflow in under 3 min
 - **Zero IDOR Vulnerabilities**: All project mutations, workspace accesses, application decisions, and invitation actions strictly enforce user identity and squad membership at the API layer.
 - **Strict Input Validation**: Handled through Pydantic V2 with length bounds, string sanitization, and literal enums.
 - **Accessible & Responsive**: Fully verified across mobile (390×844), tablet (768×1024), and desktop (1440×900) viewports with zero horizontal overflow, ARIA dialog semantics, focus management, and keyboard accessibility.
+
+- 
+## 📄 License
+
+This project is open-source under the [MIT License](LICENSE).
