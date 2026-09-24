@@ -1,0 +1,228 @@
+"use client";
+const session = true;
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { DEVELOPMENT_USER_ID } from "@/lib/development";
+import { createApiClient } from "@/lib/api";
+import { useToast } from "@/components/Toast";
+import { UserTeam } from "@/lib/types";
+import { LoadingState, ErrorState, EmptyState } from "@/components/ui/DataStates";
+import {
+  Users,
+  Plus,
+  ArrowRight,
+  Clock,
+  Loader2,
+  ExternalLink,
+  ShieldCheck,
+  FolderGit2,
+  Trash2,
+  Kanban,
+} from "lucide-react";
+import { useCallback } from "react";
+
+export default function TeamsPage() {
+  const [teams, setTeams] = useState<UserTeam[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const loadTeams = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    if (!session) {
+      setLoading(false);
+      return;
+    }
+    const api = createApiClient(DEVELOPMENT_USER_ID);
+    try {
+      const res = await api.get<UserTeam[]>("/teams/me");
+      setTeams(res || []);
+    } catch (err: any) {
+      setError(err?.message || "Failed to load teams");
+      setTeams([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTeams();
+  }, [loadTeams]);
+
+  async function handleRemoveMember(projectId: string, memberId: string, memberName: string) {
+    if (!confirm(`Are you sure you want to remove ${memberName} from this squad?`)) return;
+    try {
+      if (!session) return;
+      const api = createApiClient(DEVELOPMENT_USER_ID);
+      await api.delete(`/projects/${projectId}/members/${memberId}`);
+      toast(`${memberName} removed from squad`);
+      loadTeams();
+    } catch (err: any) {
+      toast(err?.message || "Failed to remove member", "error");
+    }
+  }
+
+  const categoryLabels: Record<string, string> = {
+    hackathon: "Hackathon Squad",
+    side_project: "Side Project",
+    research: "Research / Capstone",
+    startup: "Startup Venture",
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-6 pb-16">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+              <Users size={18} />
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
+              Teams & Squads
+            </h1>
+          </div>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+            Manage your active project rosters, hackathon teams, and squad members.
+          </p>
+        </div>
+
+        <Link
+          href="/projects/new"
+          className="btn-primary text-xs sm:text-sm !py-2 !px-4 self-start sm:self-auto flex items-center gap-1.5"
+        >
+          <Plus size={16} />
+          <span>Create New Team</span>
+        </Link>
+      </div>
+
+      {loading ? (
+        <LoadingState message="Loading your squads..." />
+      ) : error ? (
+        <div className="py-12">
+          <ErrorState
+            title="Failed to Load Teams"
+            message={error}
+            onRetry={loadTeams}
+          />
+        </div>
+      ) : teams.length === 0 ? (
+        <EmptyState
+          title="You haven't joined any squads yet"
+          message="Create your own project team or apply to open roles on existing student projects."
+          action={
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Link href="/projects/new" className="btn-primary text-xs !py-2 !px-4">
+                Post a Project Team
+              </Link>
+              <Link href="/projects" className="btn-outline text-xs !py-2 !px-4">
+                Browse Recruiting Projects
+              </Link>
+            </div>
+          }
+        />
+      ) : (
+        <div className="space-y-6">
+          {teams.map((team) => (
+            <div
+              key={team.id}
+              className="card !p-6 space-y-5 border-primary/20 bg-gradient-to-br from-white/90 to-primary/[0.03] dark:from-[#16162a] dark:to-primary/[0.05]"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100 dark:border-white/[0.06]">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
+                      {categoryLabels[team.category] || team.category}
+                    </span>
+                    <span className="text-xs text-gray-400 capitalize">{team.status}</span>
+                  </div>
+                  <h2 className="text-xl font-black text-gray-900 dark:text-white">
+                    {team.title}
+                  </h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
+                    {team.description}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary">
+                    {team.my_member_role === "Owner" ? "Team Lead" : "Squad Member"}
+                  </span>
+                  <Link
+                    href={`/projects/${team.id}/workspace`}
+                    className="btn-primary text-xs !py-2 !px-3.5 flex items-center gap-1.5 shadow-sm shadow-primary/20 min-h-[36px]"
+                  >
+                    <Kanban size={13} />
+                    <span>Workspace</span>
+                  </Link>
+                  <Link
+                    href={`/projects/${team.id}`}
+                    className="btn-outline text-xs !py-2 !px-3.5 flex items-center gap-1 min-h-[36px]"
+                  >
+                    <span>Manage Squad</span>
+                    <ArrowRight size={13} />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Member Roster */}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2.5">
+                  Roster ({team.members_count} Members)
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {team.members.map((m) => {
+                    const memberName = m.user?.display_name || m.user?.username || "Builder";
+                    const initial = memberName.charAt(0).toUpperCase();
+                    return (
+                      <div
+                        key={m.id}
+                        className="p-3.5 rounded-2xl bg-white dark:bg-[#16162a] border border-gray-100 dark:border-white/[0.04] flex items-center gap-3"
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary font-bold flex items-center justify-center text-xs shrink-0">
+                          {initial}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                            {memberName}
+                          </p>
+                          <p className="text-[10px] text-gray-400 truncate">
+                            {m.role_name || (m.member_role === "Owner" ? "Founder" : "Member")}
+                          </p>
+                        </div>
+                        {m.user?.username && (
+                          <Link
+                            href={`/profile/${m.user.username}`}
+                            className="text-gray-400 hover:text-primary transition-colors shrink-0 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/[0.05]"
+                            title={`View ${memberName}'s profile`}
+                            aria-label={`View ${memberName}'s profile`}
+                          >
+                            <ExternalLink size={13} />
+                          </Link>
+                        )}
+                        {team.my_member_role === "Owner" && m.member_role !== "Owner" && m.user_id !== DEVELOPMENT_USER_ID && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMember(team.id, m.id, memberName)}
+                            className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 shrink-0"
+                            title={`Remove ${memberName} from squad`}
+                            aria-label={`Remove ${memberName} from squad`}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

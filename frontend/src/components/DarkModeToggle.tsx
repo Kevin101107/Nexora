@@ -10,9 +10,7 @@ export default function DarkModeToggle() {
   useEffect(() => {
     setMounted(true);
     const saved = localStorage.getItem("nexora_theme");
-    const isDark = saved
-      ? saved === "dark"
-      : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const isDark = saved !== "light";
     setDark(isDark);
     document.documentElement.classList.toggle("dark", isDark);
   }, []);

@@ -1,22 +1,74 @@
-from pydantic import BaseModel
-from typing import List
+from pydantic import BaseModel, Field
+from typing import List, Optional
+from datetime import datetime
 
 
-class UserProfile(BaseModel):
+class PublicUserProfile(BaseModel):
+    id: str
+    display_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    username: Optional[str] = None
+    headline: Optional[str] = None
+    bio: Optional[str] = None
+    skills: List[str] = Field(default_factory=list)
+    roles: List[str] = Field(default_factory=list)
+    interests: List[str] = Field(default_factory=list)
+    github_url: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    college: Optional[str] = None
+    department: Optional[str] = None
+    year: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    experience_level: Optional[str] = None
+    availability: str = "open"
+    tasks_completed_count: Optional[int] = None
+    completed_projects_count: Optional[int] = None
+    created_at: Optional[datetime] = None
+
+
+class UserProfileRead(BaseModel):
     id: str
     email: str
-    display_name: str | None = None
-    avatar_url: str | None = None
-    xp: int = 0
-    level: int = 1
-    streak: int = 0
-    badges: List[str] = []
-    favourite_subjects: List[str] = []
-    daily_goal_minutes: int = 60
+    display_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    username: Optional[str] = None
+    headline: Optional[str] = None
+    bio: Optional[str] = None
+    skills: List[str] = Field(default_factory=list)
+    roles: List[str] = Field(default_factory=list)
+    interests: List[str] = Field(default_factory=list)
+    github_url: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    college: Optional[str] = None
+    department: Optional[str] = None
+    year: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    experience_level: Optional[str] = None
+    availability: str = "open"
+    tasks_completed_count: Optional[int] = None
+    completed_projects_count: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+# Backwards compatibility alias
+UserProfile = UserProfileRead
 
 
 class UserUpdate(BaseModel):
-    display_name: str | None = None
-    avatar_url: str | None = None
-    favourite_subjects: List[str] | None = None
-    daily_goal_minutes: int | None = None
+    display_name: Optional[str] = None
+    username: Optional[str] = None
+    avatar_url: Optional[str] = None
+    headline: Optional[str] = None
+    bio: Optional[str] = None
+    skills: Optional[List[str]] = None
+    roles: Optional[List[str]] = None
+    interests: Optional[List[str]] = None
+    github_url: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    college: Optional[str] = None
+    department: Optional[str] = None
+    year: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    experience_level: Optional[str] = None
+    availability: Optional[str] = None
