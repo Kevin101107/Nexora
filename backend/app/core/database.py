@@ -4,11 +4,13 @@ from threading import RLock
 
 T = "2026-09-01T10:00:00+00:00"
 
-def user(id, name, username, headline, skills, roles, availability="open", interests=None):
+def user(id, name, username, headline, skills, roles, availability="open", interests=None, college="Stanford University", department="Computer Science", year="2027", portfolio_url=None, experience_level="intermediate"):
     return {"id": id, "email": f"{username}@nexora.local", "display_name": name, "username": username,
             "headline": headline, "bio": f"Student builder interested in shipping useful products with thoughtful teams.",
             "skills": skills, "roles": roles, "interests": interests or ["Hackathons", "Open Source"],
             "github_url": f"https://github.com/{username}", "linkedin_url": None,
+            "college": college, "department": department, "year": year,
+            "portfolio_url": portfolio_url or f"https://{username}.dev", "experience_level": experience_level,
             "availability": availability, "created_at": T, "updated_at": T}
 
 SEED_DATA = {
@@ -106,6 +108,20 @@ SEED_DATA = {
  ],
  "notification_preferences": [
   {"id":"user-alice","user_id":"user-alice","team_updates":True,"task_updates":True,"milestone_updates":True,"project_updates":True,"created_at":T,"updated_at":T},
+ ],
+ "project_resources": [
+  {"id":"res-1","project_id":"project-campus","title":"GitHub Repository","url":"https://github.com/nexora/campusloop","category":"github","description":"Main mono-repo with frontend and backend services","created_by":"user-alice","created_at":T},
+  {"id":"res-2","project_id":"project-campus","title":"Figma Design System","url":"https://figma.com/@nexora/campusloop","category":"figma","description":"User journey flows and component library","created_by":"user-alice","created_at":T},
+  {"id":"res-3","project_id":"project-health","title":"Hackathon Pitch Deck","url":"https://docs.google.com/presentation/d/pulsecheck","category":"documentation","description":"Problem statement and market validation","created_by":"user-diego","created_at":T},
+  {"id":"res-4","project_id":"project-devtools","title":"Live Staging Preview","url":"https://shipyard-preview.dev","category":"deployment","description":"Automatic pull request staging deployments","created_by":"user-bob","created_at":T},
+ ],
+ "auth_credentials": [
+  {"user_id":"user-alice","password_hash":"922cfd00e0e117446f641ce0407289cf56b96259e0e3179b87bb40fdc5ed8ff7","salt":"seed_salt_123456","created_at":T,"updated_at":T},
+  {"user_id":"user-bob","password_hash":"922cfd00e0e117446f641ce0407289cf56b96259e0e3179b87bb40fdc5ed8ff7","salt":"seed_salt_123456","created_at":T,"updated_at":T},
+  {"user_id":"user-cora","password_hash":"922cfd00e0e117446f641ce0407289cf56b96259e0e3179b87bb40fdc5ed8ff7","salt":"seed_salt_123456","created_at":T,"updated_at":T},
+  {"user_id":"user-diego","password_hash":"922cfd00e0e117446f641ce0407289cf56b96259e0e3179b87bb40fdc5ed8ff7","salt":"seed_salt_123456","created_at":T,"updated_at":T},
+  {"user_id":"user-erin","password_hash":"922cfd00e0e117446f641ce0407289cf56b96259e0e3179b87bb40fdc5ed8ff7","salt":"seed_salt_123456","created_at":T,"updated_at":T},
+  {"user_id":"user-finn","password_hash":"922cfd00e0e117446f641ce0407289cf56b96259e0e3179b87bb40fdc5ed8ff7","salt":"seed_salt_123456","created_at":T,"updated_at":T},
  ],
 }
 

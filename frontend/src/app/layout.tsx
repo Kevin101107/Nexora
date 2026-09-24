@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ToastProvider } from "@/components/Toast";
+import { AuthProvider } from "@/lib/auth";
 
 export const metadata: Metadata = {
-  title: "Nexora — Find the right people to build with",
+  title: "Nexora — Build Better Together",
   description:
     "Student teammate-discovery and project-collaboration platform. Connect with compatible student builders, find project members, and form hackathon teams.",
 };
@@ -19,7 +20,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="antialiased">
-        <ToastProvider>{children}</ToastProvider>
+        <AuthProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </AuthProvider>
       </body>
     </html>
   );

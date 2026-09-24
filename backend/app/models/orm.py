@@ -31,6 +31,11 @@ class User(Base):
     interests = Column(JSON, default=list, nullable=False)
     github_url = Column(String, nullable=True)
     linkedin_url = Column(String, nullable=True)
+    college = Column(String, nullable=True)
+    department = Column(String, nullable=True)
+    year = Column(String, nullable=True)
+    portfolio_url = Column(String, nullable=True)
+    experience_level = Column(String, nullable=True)
     availability = Column(String, default="open", nullable=False)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -145,3 +150,31 @@ class TeammateRequest(Base):
     __table_args__ = (
         CheckConstraint("sender_id <> receiver_id", name="chk_no_self_request"),
     )
+
+
+class ProjectResource(Base):
+    __tablename__ = "project_resources"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String, nullable=False)
+    url = Column(String, nullable=False)
+    category = Column(String, default="other", nullable=False)  # github, documentation, figma, deployment, other
+    description = Column(Text, nullable=True)
+    created_by = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+
+    project = relationship("Project")
+    creator = relationship("User")
+
+
+class AuthCredential(Base):
+    __tablename__ = "auth_credentials"
+
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    password_hash = Column(String, nullable=False)
+    salt = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    user = relationship("User")

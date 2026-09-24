@@ -80,6 +80,11 @@ export default function EditProfilePage() {
   const [bio, setBio] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [college, setCollege] = useState("");
+  const [department, setDepartment] = useState("");
+  const [year, setYear] = useState("");
+  const [portfolioUrl, setPortfolioUrl] = useState("");
+  const [experienceLevel, setExperienceLevel] = useState("intermediate");
   const [availability, setAvailability] = useState("open");
   const [skills, setSkills] = useState<string[]>([]);
   const [roles, setRoles] = useState<string[]>([]);
@@ -100,6 +105,11 @@ export default function EditProfilePage() {
           setBio(p.bio || "");
           setGithubUrl(p.github_url || "");
           setLinkedinUrl(p.linkedin_url || "");
+          setCollege(p.college || "");
+          setDepartment(p.department || "");
+          setYear(p.year || "");
+          setPortfolioUrl(p.portfolio_url || "");
+          setExperienceLevel(p.experience_level || "intermediate");
           setAvailability(p.availability || "open");
           setSkills(p.skills || []);
           setRoles(p.roles || []);
@@ -154,6 +164,11 @@ export default function EditProfilePage() {
         bio: bio.trim() || null,
         github_url: githubUrl.trim() || null,
         linkedin_url: linkedinUrl.trim() || null,
+        college: college.trim() || null,
+        department: department.trim() || null,
+        year: year.trim() || null,
+        portfolio_url: portfolioUrl.trim() || null,
+        experience_level: experienceLevel,
         availability,
         skills,
         roles,
@@ -276,6 +291,58 @@ export default function EditProfilePage() {
               className="input-field resize-y"
               placeholder="Tell teammates about what you like building, recent hackathons, and what projects excite you..."
             />
+          </div>
+
+          {/* Academic & Experience Details */}
+          <div className="pt-4 border-t border-gray-100 dark:border-white/[0.06] space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              Academic & Experience
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="label">College / University</label>
+                <input
+                  type="text"
+                  value={college}
+                  onChange={(e) => setCollege(e.target.value)}
+                  className="input-field"
+                  placeholder="e.g. Stanford University"
+                />
+              </div>
+              <div>
+                <label className="label">Department / Major</label>
+                <input
+                  type="text"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  className="input-field"
+                  placeholder="e.g. Computer Science"
+                />
+              </div>
+              <div>
+                <label className="label">Graduation Year</label>
+                <input
+                  type="text"
+                  value={year}
+                  onChange={(e) => setYear(e.target.value)}
+                  className="input-field"
+                  placeholder="e.g. 2027"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="label">Experience Level</label>
+              <select
+                value={experienceLevel}
+                onChange={(e) => setExperienceLevel(e.target.value)}
+                className="input-field"
+              >
+                <option value="beginner">Beginner / Freshman Builder</option>
+                <option value="intermediate">Intermediate / Hackathon Participant</option>
+                <option value="advanced">Advanced / Experienced Builder & Lead</option>
+              </select>
+            </div>
           </div>
 
           <div>
@@ -455,18 +522,35 @@ export default function EditProfilePage() {
                 placeholder="https://linkedin.com/in/username"
               />
             </div>
+
+            <div className="sm:col-span-2">
+              <label className="label flex items-center gap-1.5">
+                <ExternalLink size={14} />
+                <span>Portfolio / Personal Website</span>
+              </label>
+              <input
+                type="url"
+                value={portfolioUrl}
+                onChange={(e) => setPortfolioUrl(e.target.value)}
+                className="input-field"
+                placeholder="https://yourportfolio.dev"
+              />
+            </div>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-end gap-3 pt-2">
-          <Link href="/profile" className="btn-outline text-sm">
+        <div className="flex items-center justify-end gap-3 pt-2 flex-wrap">
+          <Link
+            href="/profile"
+            className="btn-outline text-sm min-h-[44px] flex items-center justify-center flex-1 sm:flex-initial"
+          >
             Cancel
           </Link>
           <button
             type="submit"
             disabled={saving}
-            className="btn-primary text-sm font-bold px-6"
+            className="btn-primary text-sm font-bold px-6 min-h-[44px] flex items-center justify-center flex-1 sm:flex-initial"
           >
             {saving ? (
               <span className="flex items-center gap-2">

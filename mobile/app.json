@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Nexora",
+    "slug": "nexora-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "android": {
+      "package": "com.nexora.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#0f0f17"
+      }
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nexora.mobile"
+    }
+  }
+}

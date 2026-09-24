@@ -135,7 +135,7 @@ export default function Dialog({
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
-        className={`card !p-5 sm:!p-6 ${maxWidth} w-full max-h-[90vh] overflow-y-auto space-y-4 shadow-2xl animate-fade-up outline-none ${className}`}
+        className={`card !p-5 sm:!p-6 ${maxWidth} w-full max-h-[85vh] overflow-y-auto space-y-4 shadow-2xl animate-fade-up outline-none ${className}`}
       >
         {/* Dialog Header */}
         <div className="flex items-start justify-between gap-3 pb-3 border-b border-gray-100 dark:border-white/[0.06]">
@@ -160,7 +160,7 @@ export default function Dialog({
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            className="min-w-[40px] min-h-[40px] flex items-center justify-center -mr-2 -mt-1 p-2 rounded-xl text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center -mr-2 -mt-1 p-2 rounded-xl text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors"
           >
             <X size={18} />
           </button>

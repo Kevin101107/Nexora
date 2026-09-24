@@ -439,7 +439,7 @@ export default function DiscoverPage() {
               />
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+            <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto pb-1 text-xs">
               <span className="text-[11px] font-bold text-gray-400 shrink-0">Role:</span>
               {ROLES.map((r) => (
                 <button
@@ -456,7 +456,7 @@ export default function DiscoverPage() {
               ))}
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs pt-1 border-t border-gray-100 dark:border-white/[0.04]">
+            <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto pb-1 text-xs pt-1 border-t border-gray-100 dark:border-white/[0.04]">
               <span className="text-[11px] font-bold text-gray-400 shrink-0">Availability:</span>
               {AVAILABILITY_FILTERS.map((a) => (
                 <button
@@ -497,21 +497,19 @@ export default function DiscoverPage() {
                     className="card !p-5 hover:border-primary/40 transition-all flex flex-col justify-between"
                   >
                     <div>
-                      <div className="flex items-start justify-between gap-4 mb-3">
-                        <div className="flex items-center gap-3">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div className="w-12 h-12 rounded-2xl bg-primary/15 text-primary font-black text-base flex items-center justify-center shrink-0">
                             {initial}
                           </div>
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <h3 className="font-bold text-base text-gray-900 dark:text-white">
-                                {displayName}
-                              </h3>
-                            </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-bold text-base text-gray-900 dark:text-white truncate">
+                              {displayName}
+                            </h3>
                             {builder.username && (
                               <Link
                                 href={`/profile/${builder.username}`}
-                                className="text-xs font-semibold text-primary hover:underline"
+                                className="text-xs font-semibold text-primary hover:underline truncate block"
                               >
                                 @{builder.username}
                               </Link>
@@ -520,7 +518,7 @@ export default function DiscoverPage() {
                         </div>
 
                         <span
-                          className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${avail.color}`}
+                          className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border shrink-0 ${avail.color}`}
                         >
                           {avail.label}
                         </span>

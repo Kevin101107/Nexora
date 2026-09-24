@@ -6,11 +6,33 @@ class ApiError extends Error {
   }
 }
 
-function createApiClient(token: string) {
-  const headers = () => ({
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  });
+function getActiveToken(explicitToken?: string): string {
+  if (typeof window !== "undefined") {
+    const savedToken = localStorage.getItem("nexora_token");
+    if (savedToken && (!explicitToken || explicitToken === "user-alice")) {
+      return savedToken;
+    }
+  }
+  if (explicitToken && explicitToken !== "user-alice") {
+    return explicitToken;
+  }
+  if (process.env.NODE_ENV !== "production") {
+    return explicitToken || "user-alice";
+  }
+  return "";
+}
+
+function createApiClient(token?: string) {
+  const resolvedToken = getActiveToken(token);
+  const headers = () => {
+    const h: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (resolvedToken) {
+      h["Authorization"] = `Bearer ${resolvedToken}`;
+    }
+    return h;
+  };
 
   async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const controller = new AbortController();

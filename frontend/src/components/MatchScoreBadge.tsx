@@ -72,7 +72,7 @@ export default function MatchScoreBadge({ match, showDetails = false }: MatchSco
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border transition-colors ${theme.badgeBg} ${theme.badgeText} ${theme.border} hover:opacity-90`}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[36px] rounded-full text-xs font-bold border transition-colors ${theme.badgeBg} ${theme.badgeText} ${theme.border} hover:opacity-90`}
           title="Click to view match explanation"
         >
           <span>{match.score}% Match</span>

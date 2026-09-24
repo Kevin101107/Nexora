@@ -10,6 +10,11 @@ export interface PublicUserProfile {
   interests: string[];
   github_url?: string | null;
   linkedin_url?: string | null;
+  college?: string | null;
+  department?: string | null;
+  year?: string | null;
+  portfolio_url?: string | null;
+  experience_level?: string | null;
   availability: string;
   tasks_completed_count?: number | null;
   completed_projects_count?: number | null;
@@ -133,6 +138,18 @@ export interface Project {
   members: ProjectMember[];
   members_count: number;
   open_roles_count: number;
+}
+
+export interface ProjectResource {
+  id: string;
+  project_id: string;
+  title: string;
+  url: string;
+  category: string;
+  description?: string | null;
+  created_by: string;
+  creator?: PublicUserProfile | null;
+  created_at?: string | null;
 }
 
 export interface ProjectListItem {

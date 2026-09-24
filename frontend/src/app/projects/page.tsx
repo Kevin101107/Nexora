@@ -150,7 +150,7 @@ export default function ProjectsPage() {
           />
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs max-w-full">
+        <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto pb-1 text-xs max-w-full">
           {CATEGORIES.map((c) => (
             <button
               key={c.value}

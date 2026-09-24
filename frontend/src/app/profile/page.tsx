@@ -35,6 +35,8 @@ import {
   CheckSquare,
   Target,
   CheckCircle2,
+  GraduationCap,
+  Globe,
 } from "lucide-react";
 
 export default function ProfilePage() {
@@ -193,10 +195,36 @@ export default function ProfilePage() {
               {profile?.headline || "No headline set yet. Tell prospective teammates what you build!"}
             </p>
 
+            {(profile?.college || profile?.department || profile?.year) && (
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <GraduationCap size={14} className="text-primary" />
+                  {[profile.college, profile.department, profile.year ? `'${profile.year.slice(-2)}` : null]
+                    .filter(Boolean)
+                    .join(" • ")}
+                </span>
+                {profile.experience_level && (
+                  <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
+                    {profile.experience_level}
+                  </span>
+                )}
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 mt-3 text-xs text-gray-500 dark:text-gray-400">
               <span className="flex items-center gap-1">
                 <Mail size={13} /> {profile?.email} (private)
               </span>
+              {profile?.portfolio_url && (
+                <a
+                  href={profile.portfolio_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 hover:text-primary transition-colors font-medium text-primary"
+                >
+                  <Globe size={13} /> Portfolio
+                </a>
+              )}
               {profile?.github_url && (
                 <a
                   href={profile.github_url}
@@ -313,9 +341,10 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Summary Metrics Bar */}
+      {/* Summary Metrics Bar (Mobile: 2x2 Projects/Completed, Tasks/Rate; Tablet: 3-col; Desktop: 6-col) */}
       {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+          {/* Row 1 Col 1: Projects */}
           <div className="card !p-4 sm:!p-5 space-y-1">
             <div className="flex items-center justify-between text-gray-400 mb-1">
               <span className="text-[11px] font-bold uppercase tracking-wider">Projects</span>
@@ -325,40 +354,71 @@ export default function ProfilePage() {
               {summary.projects_joined}
             </div>
             <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
-              {summary.active_projects} active · {summary.completed_projects} completed
+              {summary.active_projects} active
             </p>
           </div>
 
+          {/* Row 1 Col 2: Completed Projects */}
           <div className="card !p-4 sm:!p-5 space-y-1">
             <div className="flex items-center justify-between text-gray-400 mb-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Tasks Completed</span>
-              <CheckSquare size={16} className="text-emerald-500" />
+              <span className="text-[11px] font-bold uppercase tracking-wider">Completed</span>
+              <CheckCircle2 size={16} className="text-emerald-500" />
+            </div>
+            <div className="text-2xl font-black text-gray-900 dark:text-white">
+              {summary.completed_projects}
+            </div>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+              Projects completed
+            </p>
+          </div>
+
+          {/* Row 2 Col 1: Tasks Completed */}
+          <div className="card !p-4 sm:!p-5 space-y-1">
+            <div className="flex items-center justify-between text-gray-400 mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Tasks Done</span>
+              <CheckSquare size={16} className="text-purple-500" />
             </div>
             <div className="text-2xl font-black text-gray-900 dark:text-white">
               {summary.tasks_completed}
             </div>
             <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
-              {summary.task_completion_rate}% completion ({summary.tasks_assigned} assigned)
+              {summary.tasks_assigned} assigned
             </p>
           </div>
 
+          {/* Row 2 Col 2: Completion Rate */}
+          <div className="card !p-4 sm:!p-5 space-y-1">
+            <div className="flex items-center justify-between text-gray-400 mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Completion</span>
+              <Target size={16} className="text-blue-500" />
+            </div>
+            <div className="text-2xl font-black text-gray-900 dark:text-white">
+              {summary.task_completion_rate}%
+            </div>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+              Delivery reliability
+            </p>
+          </div>
+
+          {/* Row 3 Col 1: Milestones */}
           <div className="card !p-4 sm:!p-5 space-y-1">
             <div className="flex items-center justify-between text-gray-400 mb-1">
               <span className="text-[11px] font-bold uppercase tracking-wider">Milestones</span>
-              <Target size={16} className="text-purple-500" />
+              <Trophy size={16} className="text-amber-500" />
             </div>
             <div className="text-2xl font-black text-gray-900 dark:text-white">
               {summary.milestones_contributed}
             </div>
             <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
-              Milestones delivered
+              Milestones contributed
             </p>
           </div>
 
+          {/* Row 3 Col 2: Roles Held */}
           <div className="card !p-4 sm:!p-5 space-y-1">
             <div className="flex items-center justify-between text-gray-400 mb-1">
               <span className="text-[11px] font-bold uppercase tracking-wider">Roles Held</span>
-              <Users size={16} className="text-blue-500" />
+              <Users size={16} className="text-indigo-500" />
             </div>
             <div className="text-2xl font-black text-gray-900 dark:text-white">
               {summary.roles_held}

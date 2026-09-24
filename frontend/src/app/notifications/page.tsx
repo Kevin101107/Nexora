@@ -267,12 +267,12 @@ export default function NotificationsPage() {
         </div>
 
         {/* Global actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {unreadCount > 0 && (
             <button
               type="button"
               onClick={handleMarkAllAsRead}
-              className="btn-ghost flex items-center gap-1.5 text-xs px-3 py-2 text-gray-700 dark:text-white/70 hover:text-gray-900 dark:hover:text-white min-h-[36px]"
+              className="btn-ghost flex items-center gap-1.5 text-xs px-3 py-2 text-gray-700 dark:text-white/70 hover:text-gray-900 dark:hover:text-white min-h-[40px] sm:min-h-[36px]"
               aria-label="Mark all notifications as read"
               title="Mark all notifications as read"
             >
@@ -285,7 +285,7 @@ export default function NotificationsPage() {
             <button
               type="button"
               onClick={handleClearRead}
-              className="btn-ghost flex items-center gap-1.5 text-xs px-3 py-2 text-gray-700 dark:text-white/70 hover:text-red-400 min-h-[36px]"
+              className="btn-ghost flex items-center gap-1.5 text-xs px-3 py-2 text-gray-700 dark:text-white/70 hover:text-red-400 min-h-[40px] sm:min-h-[36px]"
               aria-label="Clear all read notifications"
               title="Clear all read notifications"
             >
@@ -299,7 +299,7 @@ export default function NotificationsPage() {
             onClick={() => setShowPreferences((p) => !p)}
             aria-expanded={showPreferences}
             aria-label="Toggle notification preferences"
-            className={`btn-ghost flex items-center gap-1.5 text-xs px-3 py-2 border min-h-[36px] ${
+            className={`btn-ghost flex items-center gap-1.5 text-xs px-3 py-2 border min-h-[40px] sm:min-h-[36px] ${
               showPreferences
                 ? "border-primary text-primary bg-primary/10"
                 : "border-gray-200 dark:border-white/[0.08] text-gray-700 dark:text-white/70"
@@ -512,7 +512,7 @@ export default function NotificationsPage() {
         </div>
 
         {/* Category Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs">
+        <div className="scrollbar-hide flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs">
           {[
             { id: "all", label: "All Types" },
             { id: "team_updates", label: "Team" },

@@ -1,15 +1,15 @@
 # Nexora — Find the Right People to Build and Ship With
 
-Nexora is a web-first teammate discovery, formation, and project execution platform engineered for student builders, hackathon squads, and indie developers. It bridges the gap between searching for compatible collaborators and actually shipping together through explainable matching, verifiable contribution histories, and dedicated team workspaces.
+Nexora is a web-first teammate discovery, formation, and project collaboration platform engineered for student builders, hackathon squads, and indie developers. It bridges the gap between searching for compatible collaborators and actually shipping together through explainable matching, verifiable contribution histories, dedicated team workspaces, and shared project resource hubs.
 
 ---
 
-## 🌟 MVP Positioning Statement
+## 🌟 Core Value Proposition
 
 Traditional platforms stop at static builder profiles or superficial resumes. Nexora provides an end-to-end collaboration lifecycle:
-1. **Discover**: Transparent, deterministic matching based on verified skills, role alignment, and availability.
-2. **Form**: Two-way invitation and application lifecycles with role slot capacity enforcement.
-3. **Execute**: Private project workspaces with Kanban boards, milestones, and audit trails.
+1. **Discover**: Transparent, deterministic matching (Match Score V2) based on verified skills, role alignment, academic focus, and availability.
+2. **Form**: Two-way invitation and application lifecycles with strict role slot capacity enforcement.
+3. **Execute**: Private project workspaces with Kanban boards, milestones, shared resource hubs (GitHub, Figma, Docs), and audit trails.
 4. **Attest**: Evidence-based builder reputations derived from completed tasks and project lifecycles—with zero black-box AI scores or arbitrary points.
 
 ---
@@ -19,71 +19,80 @@ Traditional platforms stop at static builder profiles or superficial resumes. Ne
 ```mermaid
 graph TD
     subgraph Frontend [Next.js 14 Client]
-        UI[App Shell & Tailwind Dark/Purple Theme]
+        UI[App Shell & Dark/Purple UI]
+        AuthUI[Auth & Quick Demo Switcher]
         Disc[Discover & Filter Engine]
-        Prof[Builder Profile V2]
-        Work[Project Workspace & Kanban]
-        Inbox[Notification Center]
+        Prof[Student Profile & Academic Context]
+        Work[Project Workspace & Kanban Board]
+        ResHub[Project Resources Hub]
+        Inbox[Notification Center & Preferences]
     end
 
     subgraph Backend [FastAPI Application]
         Router[REST API Routers]
+        AuthSvc[PBKDF2-HMAC-SHA256 Auth & JWT Service]
         MatchSvc[Match Score V2 Engine]
         ContribSvc[Contribution & Badge Service]
         NotifSvc[Notification & Preference Engine]
-        AuthStore[Identity & Authorization Layer]
-        DataStore[In-Memory Datastore / Database Adapter]
+        WorkSvc[Workspace & Resource Manager]
+        DataStore[In-Memory Datastore / Supabase PostgreSQL Adapter]
     end
 
     UI --> Router
+    AuthUI --> AuthSvc
     Disc --> MatchSvc
     Prof --> ContribSvc
-    Work --> Router
+    Work --> WorkSvc
+    ResHub --> WorkSvc
     Inbox --> NotifSvc
+    AuthSvc --> DataStore
     MatchSvc --> DataStore
     ContribSvc --> DataStore
     NotifSvc --> DataStore
-    AuthStore --> DataStore
+    WorkSvc --> DataStore
 ```
 
 ### Technology Stack
 - **Frontend**: Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS, Lucide React icons.
-- **Backend**: FastAPI, Python 3.11+, Pydantic V2, Uvicorn, Pytest.
-- **Data & State**: Pluggable storage architecture with deterministic in-memory seedable development database.
+- **Backend**: FastAPI, Python 3.13+, Pydantic V2, Uvicorn, Pytest.
+- **Security**: PBKDF2-HMAC-SHA256 password hashing (100,000 rounds), HMAC-SHA256 JWT tokens.
+- **Data & State**: Pluggable storage architecture (in-memory development database + Supabase PostgreSQL schema with RLS).
 - **Matching Engine**: Explainable, deterministic Match Score V2 with mathematical cold-start neutrality.
 
 ---
 
-## ⚡ Core Feature Modules (Phases 1–8)
+## ⚡ Core Feature Modules
 
-### 1. Evidence-Based Builder Profiles V2 (Phase 7)
-- **Contribution History**: Displays completed projects, role-specific history, verified tasks, and non-noise activity feeds.
-- **Deterministic Badges**: Awards badges purely based on verifiable milestones (`first_project`, `contributor`, `active_contributor`, `project_finisher`, `multi_project`, `consistent_contributor`).
-- **Cold-Start Safe**: New builders receive welcoming neutral baselines instead of empty walls of zeros.
+### 1. Real Authentication & Academic Builder Profiles
+- **Secure Authentication**: Production-grade PBKDF2-HMAC-SHA256 salted password hashing and HS256 JWT session tokens.
+- **Academic & Developer Context**: Student profiles include College, Department, Graduation Year, Portfolio URL, and Experience Level (`beginner`, `intermediate`, `advanced`).
+- **Quick Demo Builder Switcher**: 1-click account switching between pre-seeded personas (Alice the Founder, Bob the Frontend Engineer, Charlie the ML Lead) for immediate interactive evaluation.
 
-### 2. Match Score V2 & Discovery Intelligence (Phase 8)
-- **Skill Overlap (45%)**: Canonicalizes and compares required skills against builder toolsets.
-- **Role Alignment & Experience (20%)**: Checks declared preferred roles and verified past role delivery.
-- **Availability Match (15%)**: Evaluates hackathon vs. side-project intent and applies busy penalties.
-- **Contribution Reliability (10%)**: Analyzes verified task completion rates (neutral 100% for cold-start users).
-- **Project Experience (10%)**: Recognizes full project lifecycles completed on Nexora.
-- **Explainable Reasons & Missing Requirements**: Surfaces actionable bullet explanations and skill gap tags.
+### 2. Match Score V2 & Teammate Discovery
+- **Deterministic 5-Factor Scoring (0–100%)**:
+  - Skill Overlap (45%): Canonicalized skill comparison against role requirements.
+  - Role Alignment & Experience (20%): Declared interests + verified delivery.
+  - Availability & Bandwidth (15%): Open vs. busy status with workload penalty.
+  - Task Delivery Reliability (10%): Ratio of completed assigned tasks (neutral 100% for cold-start users).
+  - Project Completion Track Record (10%): Number of successfully shipped projects.
+- **Explainable Reasoning**: Bulleted explanations detailing exact matches and missing requirements.
 
-### 3. Team Formation & Request Lifecycle (Phase 4)
+### 3. Team Formation & Role Capacity Enforcement
 - **Teammate Invitations**: Leads can invite specific builders to projects or open roles (`pending`, `accepted`, `declined`, `cancelled`).
-- **Role Capacity**: Automatically tracks open vs. filled role slots; closes roles upon full capacity.
+- **Open Role Capacity**: Tracks available vs. filled role slots (`slots` and `filled_slots`); automatically transitions role to `filled` once capacity is reached.
 - **Reciprocal Synchronization**: Accepting an invitation automatically resolves pending applications for that user on that project.
 
-### 4. Team Workspace & Project Execution (Phase 5)
-- **Private Project Workspace**: Secure route (`/projects/[id]/workspace`) protected by backend authorization.
+### 4. Team Workspace & Project Execution
+- **Private Project Workspace**: Secure route (`/projects/[id]/workspace`) protected by backend membership authorization.
 - **Collaborative Kanban Board**: Multi-status task management (`todo`, `in_progress`, `done`) with assignee attribution, milestone linkage, and priority flags.
 - **Milestone Tracking**: Chronological milestones with active progress bars and deadline indicators.
+- **Project Resources Hub**: Central repository of GitHub links, Figma prototypes, documentation, and live deployments with category-specific badges.
 - **Activity Feed**: Audit trail tracking project status updates, task completions, and team roster changes.
 
-### 5. Notification Center & Preferences (Phase 6)
+### 5. Notification Center & Preferences
 - **In-App Notification Hub**: Real-time collated inbox for team invites, applications, task assignments, and milestone updates.
 - **Category Filters**: Instant triage across `Team`, `Tasks`, `Milestones`, and `Projects`.
-- **Granular Notification Preferences**: Configurable toggles per notification category.
+- **Granular Preferences**: Configurable toggles per notification category.
 
 ---
 
@@ -93,7 +102,7 @@ graph TD
 
 ```bash
 cd backend
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
@@ -115,56 +124,29 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open `http://localhost:3000` in your browser. The application runs in full local demo mode with pre-seeded student builders, projects, and collaboration histories.
+Open `http://localhost:3000` in your browser. The application includes real authentication alongside pre-seeded student builders, projects, and collaboration histories.
 
 ---
 
-## 🧪 Verification & QA Commands
+## 🧪 Verification & Quality Gates
 
-Run the full automated test and verification suite:
+All automated quality gates have passed with 100% success:
 
 ```bash
-# 1. Backend Pytest Suite (139 tests)
+# 1. Backend Pytest Suite (149 tests)
 cd backend
 PYTHONPATH=. .venv/bin/pytest -v
 
-# 2. Frontend Type Check
+# 2. Frontend Type Check (0 errors)
 cd ../frontend
 npx tsc --noEmit
 
-# 3. Frontend Lint
+# 3. Frontend Lint (0 warnings)
 npm run lint
 
-# 4. Frontend Production Build
+# 4. Frontend Production Build (16/16 routes)
 npm run build
 ```
-
----
-
-## 🎬 End-to-End Demo Script
-
-Follow this guided script to explore the complete Nexora workflow in under 3 minutes:
-
-1. **Explore Discover**:
-   - Navigate to `/discover`.
-   - Toggle between **Recommended Roles** and **All Builders**.
-   - Review the **Deterministic Match Score V2** badge and expand it to inspect the 5 weighted dimensions and explanation bullets.
-2. **View Builder Profile V2**:
-   - Click on any builder card (e.g., `/profile/bob` or `/profile/charlie`).
-   - Observe the **Contribution Summary**, **Verified Badges**, **Project Lifecycles**, and **Recent Activity**.
-3. **Invite Builder to Role**:
-   - Click **Invite / Connect** on the profile.
-   - Select your project and choose an open role.
-   - Observe the live Match Score preview before sending the invite.
-4. **Review Team Workspace**:
-   - Navigate to `/projects/proj-1/workspace`.
-   - Drag or update tasks across **To Do**, **In Progress**, and **Done**.
-   - Check the **Project Progress Bar** recalculating in real-time.
-5. **Check Notifications**:
-   - Click the bell icon in the navigation bar (`/notifications`).
-   - Filter notifications by category or mark all as read.
-6. **Edit Your Builder Profile**:
-   - Head to `/profile/edit` to update technical skills, preferred roles, and availability status.
 
 ---
 
@@ -172,16 +154,24 @@ Follow this guided script to explore the complete Nexora workflow in under 3 min
 
 | Method | Endpoint | Description | Authorization |
 | :--- | :--- | :--- | :--- |
+| `POST` | `/api/auth/register` | Register new student builder | Public |
+| `POST` | `/api/auth/login` | Authenticate builder & issue JWT | Public |
+| `GET` | `/api/auth/me` | Fetch authenticated builder profile | Required |
+| `GET` | `/api/auth/demo-users` | List 1-click quick demo builder profiles | Public |
 | `GET` | `/api/users/me` | Current user profile & stats | Required |
-| `PATCH`| `/api/users/me` | Update current profile & skills | Required |
+| `PATCH`| `/api/users/me` | Update current profile, academic info & skills | Required |
 | `GET` | `/api/users/{id}/contributions` | Builder Profile V2 & badges | Public |
 | `GET` | `/api/projects` | List public recruiting projects | Public |
 | `POST`| `/api/projects` | Create new project with roles | Required |
-| `GET` | `/api/projects/{id}/workspace/tasks` | Workspace Kanban tasks | Squad Members Only |
-| `POST`| `/api/projects/{id}/workspace/tasks` | Create task with assignment | Squad Members Only |
-| `PATCH`| `/api/projects/{id}/workspace/tasks/{tid}` | Move/update task status | Squad Members Only |
+| `GET` | `/api/projects/{id}/workspace` | Workspace overview & metrics | Squad Members Only |
+| `GET` | `/api/projects/{id}/tasks` | Workspace Kanban tasks | Squad Members Only |
+| `POST`| `/api/projects/{id}/tasks` | Create task with assignment | Squad Members Only |
+| `PATCH`| `/api/projects/{id}/tasks/{tid}` | Move/update task status | Squad Members Only |
+| `GET` | `/api/projects/{id}/resources` | List project shared resources | Squad Members Only |
+| `POST`| `/api/projects/{id}/resources` | Add project resource (GitHub, Figma, etc.) | Squad Members Only |
+| `DELETE`| `/api/projects/{id}/resources/{rid}` | Delete project resource | Creator or Owner |
 | `POST`| `/api/projects/{id}/apply` | Apply to open project role | Required |
-| `POST`| `/api/requests` | Send teammate / role invitation | Required |
+| `POST`| `/api/requests` | Send teammate / role invitation | Project Owner Only |
 | `POST`| `/api/requests/{id}/respond` | Accept / decline invitation | Recipient Only |
 | `GET` | `/api/matches/me/roles` | Match Score V2 role suggestions | Required |
 | `GET` | `/api/matches/users/{uid}/roles/{rid}` | Match Score V2 role breakdown | Public / Owner |
@@ -189,13 +179,29 @@ Follow this guided script to explore the complete Nexora workflow in under 3 min
 
 ---
 
-## 🔒 Security & Quality Assurance
+## 🔒 Security Guarantees
 
 - **Zero IDOR Vulnerabilities**: All project mutations, workspace accesses, application decisions, and invitation actions strictly enforce user identity and squad membership at the API layer.
+- **Salted Password Storage**: Standard-library PBKDF2-HMAC-SHA256 with 100,000 iterations and per-credential random salt.
 - **Strict Input Validation**: Handled through Pydantic V2 with length bounds, string sanitization, and literal enums.
 - **Accessible & Responsive**: Fully verified across mobile (390×844), tablet (768×1024), and desktop (1440×900) viewports with zero horizontal overflow, ARIA dialog semantics, focus management, and keyboard accessibility.
 
-- 
+---
+
+## 📚 Project Documentation
+
+Comprehensive engineering documentation is maintained in the `docs/` directory:
+
+- [Product Requirements Document](docs/PRD.md)
+- [System Architecture & Threat Model](docs/ARCHITECTURE.md)
+- [Implementation Plan & Execution Records](docs/IMPLEMENTATION_PLAN.md)
+- [Current System Status](docs/STATUS.md)
+- [Architectural Decision Records](docs/DECISIONS.md)
+- [Testing & Verification Guide](docs/TESTING.md)
+
+---
+
 ## 📄 License
 
 This project is open-source under the [MIT License](LICENSE).
+

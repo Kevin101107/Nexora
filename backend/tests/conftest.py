@@ -186,6 +186,8 @@ def mock_db():
         "project_activity": [],
         "notifications": [],
         "notification_preferences": [],
+        "project_resources": [],
+        "auth_credentials": [],
     }
     return db
 
@@ -195,15 +197,27 @@ def client(mock_db, monkeypatch):
     mock_database = MockDatabase(mock_db)
     
     async def mock_get_user_id(authorization: str) -> str:
+        if not authorization:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=401, detail="Unauthorized")
         token = authorization.removeprefix("Bearer ").strip()
         if not token:
             from fastapi import HTTPException
             raise HTTPException(status_code=401, detail="Unauthorized")
+        from app.core.auth import decode_access_token
+        payload = decode_access_token(token)
+        if payload and payload.get("sub"):
+            return str(payload["sub"])
+        from app.core.config import settings
+        if settings.is_production:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=401, detail="Invalid or expired authentication token")
         return token
 
     modules_to_patch = [
         "app.core.database",
         "app.core.identity",
+        "app.api.routes.auth",
         "app.api.routes.users",
         "app.api.routes.projects",
         "app.api.routes.applications",
@@ -212,6 +226,7 @@ def client(mock_db, monkeypatch):
         "app.api.routes.matches",
         "app.api.routes.workspace",
         "app.api.routes.notifications",
+        "app.api.routes.resources",
     ]
 
     for mod in modules_to_patch:

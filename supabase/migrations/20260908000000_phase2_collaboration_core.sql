@@ -3,7 +3,16 @@
 -- Supabase / PostgreSQL Schema Definition
 -- =========================================================================
 
--- 1. Extend public.users with builder-profile fields
+-- 1. Base users table if not exists (for clean standalone Postgres / Supabase compatibility)
+CREATE TABLE IF NOT EXISTS public.users (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    display_name TEXT,
+    avatar_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Extend public.users with builder-profile fields
 ALTER TABLE public.users
     ADD COLUMN IF NOT EXISTS username TEXT UNIQUE,
     ADD COLUMN IF NOT EXISTS headline TEXT,

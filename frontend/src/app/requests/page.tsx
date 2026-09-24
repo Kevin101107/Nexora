@@ -244,11 +244,11 @@ export default function RequestsPage() {
                   )}
 
                   {isPending && (
-                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-white/[0.06]">
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-white/[0.06] flex-wrap">
                       <button
                         type="button"
                         onClick={() => handleRespondTeammateRequest(req.id, "declined")}
-                        className="btn-outline !py-1.5 !px-3 text-xs text-red-500 hover:text-red-600 flex items-center gap-1"
+                        className="btn-outline !py-2 !px-3.5 text-xs text-red-500 hover:text-red-600 flex items-center justify-center gap-1 min-h-[38px] flex-1 sm:flex-initial"
                       >
                         <XCircle size={14} />
                         <span>Decline</span>
@@ -256,7 +256,7 @@ export default function RequestsPage() {
                       <button
                         type="button"
                         onClick={() => handleRespondTeammateRequest(req.id, "accepted")}
-                        className="btn-primary !py-1.5 !px-4 text-xs flex items-center gap-1"
+                        className="btn-primary !py-2 !px-4 text-xs flex items-center justify-center gap-1 min-h-[38px] flex-1 sm:flex-initial"
                       >
                         <CheckCircle2 size={14} />
                         <span>Accept</span>
@@ -333,7 +333,7 @@ export default function RequestsPage() {
                           <button
                             type="button"
                             onClick={() => handleCancelTeammateRequest(req.id)}
-                            className="btn-outline !py-1 !px-2.5 text-xs text-gray-400 hover:text-red-500"
+                            className="btn-outline !py-1.5 !px-3 text-xs text-gray-400 hover:text-red-500 min-h-[36px] flex items-center justify-center"
                             title="Cancel request"
                           >
                             Cancel
@@ -429,7 +429,7 @@ export default function RequestsPage() {
                           <button
                             type="button"
                             onClick={() => handleWithdrawApplication(app.id)}
-                            className="btn-outline !py-1 !px-2.5 text-xs text-gray-400 hover:text-red-500"
+                            className="btn-outline !py-1.5 !px-3 text-xs text-gray-400 hover:text-red-500 min-h-[36px] flex items-center justify-center"
                           >
                             Withdraw
                           </button>

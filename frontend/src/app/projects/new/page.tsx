@@ -344,14 +344,17 @@ export default function NewProjectPage() {
         </div>
 
         {/* Submit */}
-        <div className="flex items-center justify-end gap-3 pt-2">
-          <Link href="/projects" className="btn-outline text-sm">
+        <div className="flex items-center justify-end gap-3 pt-2 flex-wrap">
+          <Link
+            href="/projects"
+            className="btn-outline text-sm min-h-[44px] flex items-center justify-center flex-1 sm:flex-initial"
+          >
             Cancel
           </Link>
           <button
             type="submit"
             disabled={submitting}
-            className="btn-primary text-sm font-bold px-6"
+            className="btn-primary text-sm font-bold px-6 min-h-[44px] flex items-center justify-center flex-1 sm:flex-initial"
           >
             {submitting ? (
               <span className="flex items-center gap-2">

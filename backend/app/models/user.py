@@ -15,6 +15,11 @@ class PublicUserProfile(BaseModel):
     interests: List[str] = Field(default_factory=list)
     github_url: Optional[str] = None
     linkedin_url: Optional[str] = None
+    college: Optional[str] = None
+    department: Optional[str] = None
+    year: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    experience_level: Optional[str] = None
     availability: str = "open"
     tasks_completed_count: Optional[int] = None
     completed_projects_count: Optional[int] = None
@@ -34,6 +39,11 @@ class UserProfileRead(BaseModel):
     interests: List[str] = Field(default_factory=list)
     github_url: Optional[str] = None
     linkedin_url: Optional[str] = None
+    college: Optional[str] = None
+    department: Optional[str] = None
+    year: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    experience_level: Optional[str] = None
     availability: str = "open"
     tasks_completed_count: Optional[int] = None
     completed_projects_count: Optional[int] = None
@@ -56,4 +66,9 @@ class UserUpdate(BaseModel):
     interests: Optional[List[str]] = None
     github_url: Optional[str] = None
     linkedin_url: Optional[str] = None
+    college: Optional[str] = None
+    department: Optional[str] = None
+    year: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    experience_level: Optional[str] = None
     availability: Optional[str] = None

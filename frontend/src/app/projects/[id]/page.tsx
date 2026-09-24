@@ -348,7 +348,7 @@ export default function ProjectDetailPage({
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-16">
       {/* Top Bar */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <Link
           href="/projects"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
@@ -357,7 +357,7 @@ export default function ProjectDetailPage({
           <span>Back to Projects</span>
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {(isOwner || isMember) && (
             <Link
               href={`/projects/${project.id}/workspace`}
@@ -431,12 +431,12 @@ export default function ProjectDetailPage({
         </p>
 
         {/* Owner Info */}
-        <div className="pt-4 border-t border-gray-100 dark:border-white/[0.06] flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="pt-4 border-t border-gray-100 dark:border-white/[0.06] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-primary/15 text-primary flex items-center justify-center font-black text-xs">
               {project.owner?.display_name?.charAt(0).toUpperCase() || "O"}
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-bold text-gray-900 dark:text-white">
                 Project Owner: {project.owner?.display_name || "Builder"}
               </p>
@@ -476,8 +476,8 @@ export default function ProjectDetailPage({
           )}
 
           {isMember && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="whitespace-nowrap text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 You are on this squad
               </span>
               <Link

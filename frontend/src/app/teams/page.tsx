@@ -153,14 +153,14 @@ export default function TeamsPage() {
                   </span>
                   <Link
                     href={`/projects/${team.id}/workspace`}
-                    className="btn-primary text-xs !py-1.5 !px-3 flex items-center gap-1.5 shadow-sm shadow-primary/20"
+                    className="btn-primary text-xs !py-2 !px-3.5 flex items-center gap-1.5 shadow-sm shadow-primary/20 min-h-[36px]"
                   >
                     <Kanban size={13} />
                     <span>Workspace</span>
                   </Link>
                   <Link
                     href={`/projects/${team.id}`}
-                    className="btn-outline text-xs !py-1.5 !px-3 flex items-center gap-1"
+                    className="btn-outline text-xs !py-2 !px-3.5 flex items-center gap-1 min-h-[36px]"
                   >
                     <span>Manage Squad</span>
                     <ArrowRight size={13} />

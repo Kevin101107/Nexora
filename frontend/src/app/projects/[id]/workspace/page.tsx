@@ -17,6 +17,7 @@ import {
   TaskStatus,
   TaskPriority,
   MilestoneStatus,
+  ProjectResource,
 } from "@/lib/types";
 import Dialog from "@/components/ui/Dialog";
 import { LoadingState, ErrorState, EmptyState } from "@/components/ui/DataStates";
@@ -42,9 +43,15 @@ import {
   X,
   User,
   ArrowRight,
+  Link2,
+  Globe,
+  Github,
+  Figma,
+  BookOpen,
+  ExternalLink,
 } from "lucide-react";
 
-type TabKey = "overview" | "tasks" | "milestones" | "activity" | "team";
+type TabKey = "overview" | "tasks" | "milestones" | "resources" | "activity" | "team";
 
 export default function ProjectWorkspacePage({
   params,
@@ -91,6 +98,15 @@ export default function ProjectWorkspacePage({
   const [milestoneStatus, setMilestoneStatus] = useState<MilestoneStatus>("planned");
   const [savingMilestone, setSavingMilestone] = useState(false);
 
+  // Resource Modal state
+  const [resources, setResources] = useState<ProjectResource[]>([]);
+  const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
+  const [resourceTitle, setResourceTitle] = useState("");
+  const [resourceUrl, setResourceUrl] = useState("");
+  const [resourceCategory, setResourceCategory] = useState<string>("github");
+  const [resourceDesc, setResourceDesc] = useState("");
+  const [savingResource, setSavingResource] = useState(false);
+
   // Fetch all workspace data
   const loadWorkspace = useCallback(async () => {
     try {
@@ -99,17 +115,19 @@ export default function ProjectWorkspacePage({
       setAccessDenied(false);
       const api = createApiClient(currentUserId);
 
-      const [wsData, tasksData, milestonesData, activityData] = await Promise.all([
+      const [wsData, tasksData, milestonesData, activityData, resourcesData] = await Promise.all([
         api.get<WorkspaceOverview>(`/projects/${projectId}/workspace`),
         api.get<Task[]>(`/projects/${projectId}/tasks`),
         api.get<Milestone[]>(`/projects/${projectId}/milestones`),
         api.get<ProjectActivity[]>(`/projects/${projectId}/activity`),
+        api.get<ProjectResource[]>(`/projects/${projectId}/resources`).catch(() => [] as ProjectResource[]),
       ]);
 
       setWorkspace(wsData);
       setTasks(tasksData);
       setMilestones(milestonesData);
       setActivities(activityData);
+      setResources(resourcesData || []);
       setAccessDenied(false);
     } catch (err: any) {
       if (err?.status === 403) {
@@ -301,6 +319,52 @@ export default function ProjectWorkspacePage({
     }
   };
 
+  // Resource Handlers
+  const handleOpenCreateResource = () => {
+    setResourceTitle("");
+    setResourceUrl("");
+    setResourceCategory("github");
+    setResourceDesc("");
+    setIsResourceModalOpen(true);
+  };
+
+  const handleSaveResource = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resourceTitle.trim() || !resourceUrl.trim()) {
+      toast("Title and URL are required", "error");
+      return;
+    }
+    try {
+      setSavingResource(true);
+      const api = createApiClient(currentUserId);
+      await api.post(`/projects/${projectId}/resources`, {
+        title: resourceTitle.trim(),
+        url: resourceUrl.trim(),
+        category: resourceCategory,
+        description: resourceDesc.trim() || null,
+      });
+      toast("Resource added to project", "success");
+      setIsResourceModalOpen(false);
+      loadWorkspace();
+    } catch (err: any) {
+      toast(err.message || "Failed to create resource", "error");
+    } finally {
+      setSavingResource(false);
+    }
+  };
+
+  const handleDeleteResource = async (resourceId: string) => {
+    if (!confirm("Are you sure you want to remove this resource?")) return;
+    try {
+      const api = createApiClient(currentUserId);
+      await api.delete(`/projects/${projectId}/resources/${resourceId}`);
+      toast("Resource removed", "success");
+      loadWorkspace();
+    } catch (err: any) {
+      toast(err.message || "Failed to delete resource", "error");
+    }
+  };
+
   // Filtered tasks for Kanban board
   const filteredTasks = useMemo(() => {
     return tasks.filter((t) => {
@@ -415,11 +479,12 @@ export default function ProjectWorkspacePage({
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex border-b border-gray-100 dark:border-white/[0.06] overflow-x-auto gap-1 sm:gap-2 pt-2">
+          <div className="scrollbar-hide flex border-b border-gray-100 dark:border-white/[0.06] overflow-x-auto gap-1 sm:gap-2 pt-2">
             {[
               { key: "overview", label: "Overview", icon: LayoutDashboard },
               { key: "tasks", label: `Tasks (${tasks.length})`, icon: Kanban },
               { key: "milestones", label: `Milestones (${milestones.length})`, icon: Flag },
+              { key: "resources", label: `Resources (${resources.length})`, icon: Link2 },
               { key: "activity", label: "Activity", icon: Activity },
               { key: "team", label: `Team (${workspace.members.length})`, icon: Users },
             ].map((tab) => {
@@ -781,7 +846,7 @@ export default function ProjectWorkspacePage({
                   </span>
                 </div>
 
-                <div className="space-y-3 min-h-[300px]">
+                <div className="space-y-3 min-h-0 md:min-h-[300px]">
                   {todoTasks.map((t) => renderTaskCard(t))}
                   {todoTasks.length === 0 && (
                     <div className="p-6 rounded-2xl border border-dashed border-gray-200 dark:border-white/[0.06] text-center text-xs text-gray-400">
@@ -805,7 +870,7 @@ export default function ProjectWorkspacePage({
                   </span>
                 </div>
 
-                <div className="space-y-3 min-h-[300px]">
+                <div className="space-y-3 min-h-0 md:min-h-[300px]">
                   {inProgressTasks.map((t) => renderTaskCard(t))}
                   {inProgressTasks.length === 0 && (
                     <div className="p-6 rounded-2xl border border-dashed border-gray-200 dark:border-white/[0.06] text-center text-xs text-gray-400">
@@ -829,7 +894,7 @@ export default function ProjectWorkspacePage({
                   </span>
                 </div>
 
-                <div className="space-y-3 min-h-[300px]">
+                <div className="space-y-3 min-h-0 md:min-h-[300px]">
                   {doneTasks.map((t) => renderTaskCard(t))}
                   {doneTasks.length === 0 && (
                     <div className="p-6 rounded-2xl border border-dashed border-gray-200 dark:border-white/[0.06] text-center text-xs text-gray-400">
@@ -969,6 +1034,119 @@ export default function ProjectWorkspacePage({
                           View Tasks
                         </button>
                       </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 3.5 RESOURCES TAB */}
+      {activeTab === "resources" && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-gray-900 dark:text-white">Project Resources</h2>
+              <p className="text-xs text-gray-500">Shared repositories, design files, documentation, and external links.</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleOpenCreateResource}
+              className="btn-primary text-xs !py-2 !px-3.5 flex items-center gap-1.5 self-start sm:self-auto"
+            >
+              <Plus size={14} />
+              <span>Add Resource</span>
+            </button>
+          </div>
+
+          {resources.length === 0 ? (
+            <div className="card !p-12 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-white/[0.05] text-gray-400 flex items-center justify-center mx-auto">
+                <Link2 size={24} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white">No resources attached yet</h3>
+                <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
+                  Add GitHub repos, Figma prototypes, design specs, or live deployment links to centralize project assets.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleOpenCreateResource}
+                className="btn-outline text-xs !py-1.5 !px-3.5 inline-flex items-center gap-1.5"
+              >
+                <Plus size={13} />
+                <span>Add First Resource</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {resources.map((resource) => {
+                const isCreator = resource.created_by === currentUserId;
+                const canDelete = isOwner || isCreator;
+                const getCategoryIcon = (cat: string) => {
+                  switch (cat.toLowerCase()) {
+                    case "github":
+                      return <Github className="text-gray-900 dark:text-white" size={18} />;
+                    case "figma":
+                      return <Figma className="text-purple-500" size={18} />;
+                    case "docs":
+                      return <BookOpen className="text-blue-500" size={18} />;
+                    case "deployment":
+                      return <Globe className="text-emerald-500" size={18} />;
+                    default:
+                      return <Link2 className="text-primary" size={18} />;
+                  }
+                };
+
+                return (
+                  <div
+                    key={resource.id}
+                    className="card !p-5 flex flex-col justify-between hover:border-primary/40 transition-all group"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-white/[0.05] flex items-center justify-center shrink-0">
+                          {getCategoryIcon(resource.category)}
+                        </div>
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/[0.06] text-gray-600 dark:text-gray-300">
+                          {resource.category}
+                        </span>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-primary transition-colors line-clamp-1">
+                          {resource.title}
+                        </h4>
+                        {resource.description && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                            {resource.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-gray-100 dark:border-white/[0.06] flex items-center justify-between">
+                      <a
+                        href={resource.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                      >
+                        <span>Open Resource</span>
+                        <ExternalLink size={12} />
+                      </a>
+                      {canDelete && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteResource(resource.id)}
+                          className="text-gray-400 hover:text-red-500 p-1 rounded transition-colors"
+                          title="Delete resource"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -1414,6 +1592,95 @@ export default function ProjectWorkspacePage({
           </div>
         </form>
       </Dialog>
+
+      {/* Create Resource Dialog */}
+      <Dialog
+        isOpen={isResourceModalOpen}
+        onClose={() => setIsResourceModalOpen(false)}
+        title="Add Project Resource"
+      >
+        <form onSubmit={handleSaveResource} className="space-y-4">
+          <div>
+            <label htmlFor="resource-modal-title" className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+              Resource Title *
+            </label>
+            <input
+              id="resource-modal-title"
+              type="text"
+              value={resourceTitle}
+              onChange={(e) => setResourceTitle(e.target.value)}
+              placeholder="e.g. GitHub Repository, Figma Design System"
+              required
+              className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08]"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="resource-modal-category" className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+              Category
+            </label>
+            <select
+              id="resource-modal-category"
+              value={resourceCategory}
+              onChange={(e) => setResourceCategory(e.target.value)}
+              className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08]"
+            >
+              <option value="github">GitHub</option>
+              <option value="figma">Figma</option>
+              <option value="docs">Documentation</option>
+              <option value="deployment">Deployment / Demo</option>
+              <option value="other">Other Link</option>
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="resource-modal-url" className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+              Resource URL *
+            </label>
+            <input
+              id="resource-modal-url"
+              type="url"
+              value={resourceUrl}
+              onChange={(e) => setResourceUrl(e.target.value)}
+              placeholder="https://..."
+              required
+              className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08]"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="resource-modal-desc" className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+              Description (Optional)
+            </label>
+            <textarea
+              id="resource-modal-desc"
+              value={resourceDesc}
+              onChange={(e) => setResourceDesc(e.target.value)}
+              placeholder="Notes on how to access or what this resource contains..."
+              rows={2}
+              className="w-full text-xs px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.08]"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 dark:border-white/[0.06]">
+            <button
+              type="button"
+              onClick={() => setIsResourceModalOpen(false)}
+              className="btn-outline text-xs !py-1.5 !px-3.5"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={savingResource}
+              className="btn-primary text-xs !py-1.5 !px-4 flex items-center gap-1.5"
+            >
+              {savingResource && <Loader2 size={13} className="animate-spin" />}
+              <span>Add Resource</span>
+            </button>
+          </div>
+        </form>
+      </Dialog>
     </div>
   );
 
@@ -1489,7 +1756,7 @@ export default function ProjectWorkspacePage({
                   title="Mark Done"
                   aria-label="Mark Done"
                   onClick={() => handleQuickStatusChange(t, "done")}
-                  className="p-1.5 rounded hover:bg-emerald-500/15 text-gray-400 hover:text-emerald-500 transition-colors"
+                  className="min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg hover:bg-emerald-500/15 text-gray-400 hover:text-emerald-500 transition-colors"
                 >
                   <Check size={14} />
                 </button>
@@ -1500,7 +1767,7 @@ export default function ProjectWorkspacePage({
                   title="Move to In Progress"
                   aria-label="Move to In Progress"
                   onClick={() => handleQuickStatusChange(t, "in_progress")}
-                  className="p-1.5 rounded hover:bg-amber-500/15 text-gray-400 hover:text-amber-500 transition-colors"
+                  className="min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg hover:bg-amber-500/15 text-gray-400 hover:text-amber-500 transition-colors"
                 >
                   <Clock size={14} />
                 </button>

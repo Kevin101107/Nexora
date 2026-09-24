@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Compass, FolderGit2, Users, Inbox, User, Sun, Moon,
-  ChevronLeft, ChevronRight, Bell, MoreHorizontal, X
+  ChevronLeft, ChevronRight, Bell, MoreHorizontal, X, LogOut, LogIn, Sparkles, ChevronDown
 } from "lucide-react";
 import { DEVELOPMENT_USER_ID } from "@/lib/development";
 import { createApiClient } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { UnreadCountResponse } from "@/lib/types";
 import { useCallback, useEffect, useState, useRef } from "react";
 
@@ -35,16 +36,21 @@ const NAV: NavItem[] = [...PRIMARY_NAV, ...SECONDARY_NAV];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { user, logout, demoLogin, isAuthenticated } = useAuth();
   const [dark, setDark] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [moreOpen, setMoreOpen] = useState(false);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+
+  const activeUser = user || profile;
 
   const fetchUnreadCount = useCallback(() => {
-    const api = createApiClient(DEVELOPMENT_USER_ID);
+    const api = createApiClient();
     api.get<UnreadCountResponse>("/notifications/unread-count")
       .then((data) => setUnreadCount(data.unread_count || 0))
       .catch(() => null);
@@ -113,11 +119,13 @@ export default function Sidebar() {
     window.dispatchEvent(new Event("sidebar_toggle"));
   }
 
-  const nameInitial = profile?.display_name
-    ? profile.display_name.charAt(0).toUpperCase()
-    : profile?.email
-    ? profile.email.charAt(0).toUpperCase()
-    : "S";
+  const nameInitial = activeUser?.display_name
+    ? activeUser.display_name.charAt(0).toUpperCase()
+    : activeUser?.username
+    ? activeUser.username.charAt(0).toUpperCase()
+    : activeUser?.email
+    ? activeUser.email.charAt(0).toUpperCase()
+    : "B";
 
   const isSecondaryActive = SECONDARY_NAV.some(({ href }) => pathname.startsWith(href));
 
@@ -186,26 +194,116 @@ export default function Sidebar() {
         </nav>
 
         {/* Footer Actions & Profile details */}
-        <div className="p-3 border-t border-gray-100 dark:border-white/[0.06] space-y-2 shrink-0">
-          {/* Quick Profile Summary */}
-          {profile && (
-            <div className={`p-2 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100/50 dark:border-white/[0.03] ${
-              collapsed ? "text-center flex justify-center py-3" : "flex items-center gap-2.5"
-            }`}>
-              <div className="w-8 h-8 rounded-xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center font-bold text-primary text-sm shrink-0">
-                {nameInitial}
-              </div>
-              {!collapsed && (
-                <div className="min-w-0 flex-1 animate-fade-up">
-                  <p className="text-xs font-black text-gray-900 dark:text-white truncate">
-                    {profile.display_name || profile.email.split("@")[0]}
-                  </p>
-                  <p className="text-[10px] text-gray-500 dark:text-white/40 font-medium truncate mt-0.5">
-                    {profile.headline || (profile.roles && profile.roles.length > 0 ? profile.roles[0] : "Student Builder")}
-                  </p>
+        <div className="p-3 border-t border-gray-100 dark:border-white/[0.06] space-y-2 shrink-0 relative">
+          {/* Quick Profile Summary / Account Switcher */}
+          {activeUser ? (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setAccountMenuOpen((prev) => !prev)}
+                className={`w-full p-2 rounded-2xl bg-gray-50 dark:bg-white/[0.02] hover:bg-gray-100 dark:hover:bg-white/[0.05] border border-gray-100/50 dark:border-white/[0.03] transition-all text-left ${
+                  collapsed ? "flex justify-center py-3" : "flex items-center gap-2.5"
+                }`}
+                title="Account settings & switcher"
+              >
+                <div className="w-8 h-8 rounded-xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center font-bold text-primary text-sm shrink-0">
+                  {nameInitial}
+                </div>
+                {!collapsed && (
+                  <div className="min-w-0 flex-1 animate-fade-up">
+                    <p className="text-xs font-black text-gray-900 dark:text-white truncate">
+                      {activeUser.display_name || activeUser.username || activeUser.email?.split("@")[0]}
+                    </p>
+                    <p className="text-[10px] text-gray-500 dark:text-white/40 font-medium truncate mt-0.5">
+                      {activeUser.headline || (activeUser.roles && activeUser.roles.length > 0 ? activeUser.roles[0] : "Student Builder")}
+                    </p>
+                  </div>
+                )}
+                {!collapsed && <ChevronDown size={14} className="text-gray-400 shrink-0" />}
+              </button>
+
+              {/* Account Dropdown Popover */}
+              {accountMenuOpen && (
+                <div
+                  ref={accountMenuRef}
+                  className="absolute bottom-full left-0 mb-2 w-56 rounded-2xl bg-white dark:bg-[#16162a] border border-gray-200 dark:border-white/[0.1] shadow-xl p-2 z-50 animate-fade-up text-xs"
+                >
+                  <div className="px-3 py-2 border-b border-gray-100 dark:border-white/[0.06] mb-1">
+                    <p className="font-bold text-gray-900 dark:text-white truncate">
+                      {activeUser.display_name}
+                    </p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
+                      @{activeUser.username || activeUser.id}
+                    </p>
+                  </div>
+
+                  <Link
+                    href="/profile"
+                    onClick={() => setAccountMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors"
+                  >
+                    <User size={14} />
+                    <span>View Profile</span>
+                  </Link>
+                  <Link
+                    href="/profile/edit"
+                    onClick={() => setAccountMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors"
+                  >
+                    <Sparkles size={14} />
+                    <span>Edit Profile</span>
+                  </Link>
+
+                  <div className="pt-1.5 mt-1.5 border-t border-gray-100 dark:border-white/[0.06]">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 mb-1">
+                      Quick Demo Switch
+                    </p>
+                    {[
+                      { id: "user-alice", user: "maya", name: "Maya (Full-Stack)" },
+                      { id: "user-bob", user: "arjun", name: "Arjun (Backend)" },
+                      { id: "user-cora", user: "zoya", name: "Zoya (Design)" },
+                      { id: "user-diego", user: "devpatel", name: "Dev (AI/ML)" },
+                    ].map((d) => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={async () => {
+                          await demoLogin(d.id, d.user);
+                          setAccountMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-1.5 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.06] text-[11px] font-medium"
+                      >
+                        {d.name}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="pt-1.5 mt-1.5 border-t border-gray-100 dark:border-white/[0.06]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        logout();
+                        setAccountMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors font-semibold"
+                    >
+                      <LogOut size={14} />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
+          ) : (
+            <Link
+              href="/login"
+              className={`w-full p-2.5 rounded-2xl bg-primary text-white font-bold text-xs flex items-center justify-center gap-2 hover:bg-primary-600 transition-all shadow-sm ${
+                collapsed ? "p-2.5" : ""
+              }`}
+            >
+              <LogIn size={15} />
+              {!collapsed && <span>Sign In</span>}
+            </Link>
           )}
 
           {/* Theme switcher */}
@@ -244,7 +342,7 @@ export default function Sidebar() {
           role="dialog"
           aria-modal="true"
           aria-label="More navigation destinations"
-          className="md:hidden fixed bottom-20 left-4 right-4 z-50 p-4 rounded-3xl bg-white dark:bg-[#12121f] border border-gray-200 dark:border-white/[0.1] shadow-2xl space-y-2 max-w-sm mx-auto animate-fade-up"
+          className="md:hidden fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] left-4 right-4 z-50 p-4 rounded-3xl bg-white dark:bg-[#12121f] border border-gray-200 dark:border-white/[0.1] shadow-2xl space-y-2 max-w-sm mx-auto animate-fade-up"
         >
           <div className="flex items-center justify-between px-2 pb-2 border-b border-gray-100 dark:border-white/[0.06]">
             <span className="text-xs font-bold text-gray-500 dark:text-white/40 uppercase tracking-wider">
@@ -308,7 +406,7 @@ export default function Sidebar() {
       )}
 
       {/* Mobile Bottom Tab Bar */}
-      <div className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 dark:border-white/[0.08] bg-white/95 dark:bg-[#0f0f17]/95 backdrop-blur">
+      <div className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 dark:border-white/[0.08] bg-white/95 dark:bg-[#0f0f17]/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
         <nav aria-label="Mobile navigation" className="grid grid-cols-5 gap-1 px-2 py-1.5">
           {PRIMARY_NAV.map(({ href, label, icon: Icon }) => {
             const active = pathname.startsWith(href);
